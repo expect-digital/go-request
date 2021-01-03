@@ -3,7 +3,7 @@
 [![GoDoc](https://img.shields.io/badge/pkg.go.dev-doc-blue)](http://pkg.go.dev/github.com/expect-digital/go-request)
 
 Package request implements simple decoding of http request - queries, headers and body - into golang struct
-for easier consumption, resulting in less code boilerplate
+for easier consumption, resulting in less code boilerplate.
 
 Implementation is based on OpenAPI 3 specification [https://swagger.io/docs/specification/about/](https://swagger.io/docs/specification/about/).
 
@@ -19,15 +19,17 @@ func (r *http.Request, w *http.Response) {
 		Client Client `body:"json"`
 	}
 
-	if err := request.Unmarshal(r, &req); err != nil {
+	if err := request.Decode(r, &req); err != nil {
 		// ...
 	}
 }
 ```
 
-## Examples
+## Functions
 
-### Decode
+### func [Decode](/request.go#L76)
+
+`func Decode(r *http.Request, i interface{}) error`
 
 Decode decodes http request into golang struct using defaults of OpenAPI 3 specification.
 
