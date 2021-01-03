@@ -42,11 +42,11 @@ func ExampleDecoder_Decode() {
 		Ids []int
 	}
 
-	decoder := request.NewDecoder()
+	dec := request.NewDecoder()
 	// set query values imploded "?ids=1,2,3" by default
-	decoder.Query.Exploded = false
+	dec.Query.Exploded = false
 
-	_ = decoder.Decode(r, &req)
+	_ = dec.Decode(r, &req)
 
 	fmt.Printf("%+v\n", req)
 	// Output:

@@ -47,6 +47,18 @@ const (
 	QueryStyleDeep  = "deep"  // ?id[role]=admin&id[firstName]=Alex
 )
 
+type PathConf struct {
+	// Get returns value of path parameter.
+	//
+	//	// chi
+	//	PathConf{
+	//		Get: func(r *http.Request, name string) string {
+	//			return chi.URLParam(r, name)
+	//		},
+	//	}
+	Get func(r *http.Request, name string) string
+}
+
 type QueryConf struct {
 	// true - "?id=1&id=2&id=3", false - "?id=1,2,3"
 	Exploded bool
@@ -57,6 +69,7 @@ type QueryConf struct {
 }
 
 type Decoder struct {
+	Path  PathConf
 	Query QueryConf
 }
 
@@ -184,6 +197,18 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 			}
 
 			continue
+		}
+
+		tagValue, ok = ft.Tag.Lookup("path")
+		if ok {
+			if d.Path.Get == nil {
+				continue
+			}
+
+			err := setValue(fv, []string{d.Path.Get(r, tagValue)})
+			if err != nil {
+				return fmt.Errorf("path '%s': %w", tagValue, err)
+			}
 		}
 
 		// query params
