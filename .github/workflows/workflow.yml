@@ -1,0 +1,19 @@
+on: [pull_request]
+name: Check
+jobs:
+  check:
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      matrix:
+        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v2
+      - name: Go
+        uses: actions/setup-go@v2
+      - name: Lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.34
+      - name: Test
+        run: go test -v ./...
