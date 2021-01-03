@@ -1,5 +1,5 @@
 // Package request implements simple decoding of http request - queries, headers and body - into golang struct
-// for easier consumption, resulting in less code boilerplate
+// for easier consumption, resulting in less code boilerplate.
 //
 // Implementation is based on OpenAPI 3 specification https://swagger.io/docs/specification/about/.
 //
@@ -14,7 +14,7 @@
 //			Client Client `body:"json"`
 //		}
 //
-//		if err := request.Unmarshal(r, &req); err != nil {
+//		if err := request.Decode(r, &req); err != nil {
 //			// ...
 //		}
 //	}
@@ -137,12 +137,12 @@ func Decode(r *http.Request, i interface{}) error {
 func (d Decoder) Decode(r *http.Request, i interface{}) error {
 	v := reflect.ValueOf(i)
 	if v.Kind() != reflect.Ptr {
-		return errors.New("call of Unmarshal passes non-pointer as second argument")
+		return errors.New("call of Decode passes non-pointer as second argument")
 	}
 
 	v = v.Elem()
 	if v.Kind() != reflect.Struct {
-		return errors.New("call of Unmarshal passes pointer to non-struct as second argument")
+		return errors.New("call of Decode passes pointer to non-struct as second argument")
 	}
 
 	t := v.Type()

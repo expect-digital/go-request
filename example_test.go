@@ -35,7 +35,7 @@ func ExampleDecode() {
 	// {FilterType:[pending approved] ClientId:4 FilterClientIds:[1 2 3] Client:{Id:1}}
 }
 
-func ExampleDecoder() {
+func ExampleDecoder_Decode() {
 	r := httptest.NewRequest(http.MethodPost, "/?ids=1,2,3", nil)
 
 	var req struct {

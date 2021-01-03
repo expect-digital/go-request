@@ -15,10 +15,10 @@ import (
 func TestParsePointerToStruct(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	assert.EqualError(t, Decode(r, struct{}{}), "call of Unmarshal passes non-pointer as second argument")
+	assert.EqualError(t, Decode(r, struct{}{}), "call of Decode passes non-pointer as second argument")
 
 	var i int
-	assert.EqualError(t, Decode(r, &i), "call of Unmarshal passes pointer to non-struct as second argument")
+	assert.EqualError(t, Decode(r, &i), "call of Decode passes pointer to non-struct as second argument")
 }
 
 func TestParseQueryBool(t *testing.T) {
