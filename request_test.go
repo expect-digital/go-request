@@ -18,6 +18,7 @@ func TestParsePointerToStruct(t *testing.T) {
 	assert.EqualError(t, Decode(r, struct{}{}), "call of Decode passes non-pointer as second argument")
 
 	var i int
+
 	assert.EqualError(t, Decode(r, &i), "call of Decode passes pointer to non-struct as second argument")
 }
 
@@ -126,7 +127,7 @@ func TestParseQueryInt64(t *testing.T) {
 		}
 
 		queries := url.Values{}
-		queries.Set("value", strconv.FormatInt(int64(v), 10))
+		queries.Set("value", strconv.FormatInt(v, 10))
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
@@ -142,7 +143,7 @@ func TestParseQueryInt(t *testing.T) {
 		}
 
 		queries := url.Values{}
-		queries.Set("value", strconv.Itoa(int(v)))
+		queries.Set("value", strconv.Itoa(v))
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
@@ -206,7 +207,7 @@ func TestParseQueryUint64(t *testing.T) {
 		}
 
 		queries := url.Values{}
-		queries.Set("value", strconv.FormatUint(uint64(v), 10))
+		queries.Set("value", strconv.FormatUint(v, 10))
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
@@ -254,7 +255,7 @@ func TestParseQueryFloat64(t *testing.T) {
 		}
 
 		queries := url.Values{}
-		queries.Set("value", strconv.FormatFloat(float64(v), 'f', -1, 64))
+		queries.Set("value", strconv.FormatFloat(v, 'f', -1, 64))
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
@@ -303,7 +304,7 @@ func TestParseQueryStringSliceImploded(t *testing.T) {
 
 		// remove all commas
 		for i := range v {
-			v[i] = strings.Replace(v[i], ",", "", -1)
+			v[i] = strings.ReplaceAll(v[i], ",", "")
 		}
 
 		queries := url.Values{}
@@ -345,7 +346,7 @@ func TestParseQueryStringSliceSpace(t *testing.T) {
 
 		// remove all delimiters
 		for i := range v {
-			v[i] = strings.Replace(v[i], QueryDelimiterSpace, "", -1)
+			v[i] = strings.ReplaceAll(v[i], QueryDelimiterSpace, "")
 		}
 
 		queries := url.Values{}
@@ -367,7 +368,7 @@ func TestParseQueryStringSlicePipe(t *testing.T) {
 		}
 
 		for i := range v {
-			v[i] = strings.Replace(v[i], QueryDelimiterPipe, "", -1)
+			v[i] = strings.ReplaceAll(v[i], QueryDelimiterPipe, "")
 		}
 
 		queries := url.Values{}

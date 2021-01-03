@@ -148,7 +148,8 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 	t := v.Type()
 
 	// query values lookup by its original and lowercased name
-	query := make(map[string][]string, len(r.URL.Query())*2)
+	const doubleSize = 2
+	query := make(map[string][]string, doubleSize*len(r.URL.Query()))
 
 	for qk, qv := range r.URL.Query() {
 		lower := strings.ToLower(qk)
@@ -165,22 +166,30 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 		fv := v.Field(i)
 		ft := t.Field(i)
 
-		if v, ok := ft.Tag.Lookup("body"); ok {
-			err := decodeBody(r, v, fv.Addr().Interface())
+		tagValue, ok := ft.Tag.Lookup("body")
+		if ok {
+			err := decodeBody(r, tagValue, fv.Addr().Interface())
 			if err != nil {
 				return err
 			}
-		} else if _, ok = ft.Tag.Lookup("header"); ok {
+
+			continue
+		}
+
+		_, ok = ft.Tag.Lookup("header")
+		if ok {
 			err := decodeHeaders()
 			if err != nil {
 				return err
 			}
-		} else {
-			// query params
-			err := decodeQuery(d.Query, fv, ft, query)
-			if err != nil {
-				return err
-			}
+
+			continue
+		}
+
+		// query params
+		err := decodeQuery(d.Query, fv, ft, query)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -189,8 +198,8 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 
 type fieldConf struct {
 	name     string // query name
-	exploded bool   // whether exploded values
 	style    string // serialization style
+	exploded bool   // whether exploded values
 	required bool
 }
 
@@ -199,6 +208,7 @@ func parseFieldTag(queryConf QueryConf, s string) fieldConf {
 	confString := strings.SplitN(s, ",", 2)
 
 	conf.name = strings.TrimSpace(confString[0])
+
 	if len(confString) == 1 {
 		return conf
 	}
@@ -334,16 +344,19 @@ func setValue(rv reflect.Value, values []string) error {
 		rv = rv.Elem()
 	}
 
-	bitSize := func() int { return int(rv.Type().Size()) * 8 }
+	const bitsPerByte = 8
+
+	bitSize := func() int { return int(rv.Type().Size()) * bitsPerByte }
 
 	switch kind := rv.Kind(); kind {
 	default:
-		return fmt.Errorf("unkonwn type: %s", kind)
+		return fmt.Errorf("unknown type: %s", kind)
 	case reflect.Bool:
 		v, err := strconv.ParseBool(values[0])
 		if err != nil {
 			return err
 		}
+
 		rv.SetBool(v)
 	case reflect.String:
 		rv.SetString(values[0])
@@ -352,37 +365,44 @@ func setValue(rv reflect.Value, values []string) error {
 		if err != nil {
 			return err
 		}
+
 		rv.SetUint(v)
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 		v, err := strconv.ParseInt(values[0], 10, bitSize())
 		if err != nil {
 			return err
 		}
+
 		rv.SetInt(v)
 	case reflect.Float32, reflect.Float64:
 		v, err := strconv.ParseFloat(values[0], bitSize())
 		if err != nil {
 			return err
 		}
+
 		rv.SetFloat(v)
 	case reflect.Complex64, reflect.Complex128:
 		v, err := strconv.ParseComplex(values[0], bitSize())
 		if err != nil {
 			return err
 		}
+
 		rv.SetComplex(v)
 	case reflect.Slice:
 		t := rv.Type()
 		slice := reflect.MakeSlice(t, 0, len(values))
+
 		if len(values) > 0 {
 			for _, value := range values {
 				v := reflect.New(t.Elem()).Elem()
 				if err := setValue(v, []string{value}); err != nil {
 					return err
 				}
+
 				slice = reflect.Append(slice, v)
 			}
 		}
+
 		rv.Set(slice)
 	}
 
