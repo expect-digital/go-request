@@ -508,19 +508,19 @@ func TestDecodeXMLBody(t *testing.T) {
 }
 
 func TestDecoder_DecodePath(t *testing.T) {
+	dec := NewDecoder()
+	// assume we return path parameter from path like /clients/{id}
+	dec.Path.Get = func(r *http.Request, name string) string {
+		v := strings.Split(r.URL.Path, "/")
+		return v[len(v)-1]
+	}
+
 	assert.NoError(t, quick.Check(func(id int) bool {
 		var req struct {
 			ClientId int `path:"id"`
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/clients/"+strconv.Itoa(id), nil)
-
-		dec := NewDecoder()
-		// assume we return path parameter from path like /clients/{id}
-		dec.Path.Get = func(r *http.Request, name string) string {
-			v := strings.Split(r.URL.Path, "/")
-			return v[len(v)-1]
-		}
 
 		return assert.NoError(t, dec.Decode(r, &req)) && assert.Equal(t, id, req.ClientId)
 	}, nil))
