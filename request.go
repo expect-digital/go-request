@@ -56,9 +56,7 @@ type PathConf struct {
 	//
 	//	// chi
 	//	PathConf{
-	//		Get: func(r *http.Request, name string) string {
-	//			return chi.URLParam(r, name)
-	//		},
+	//		Get: chi.URLParam
 	//	}
 	Get func(r *http.Request, name string) string
 }
