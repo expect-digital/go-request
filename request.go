@@ -129,7 +129,7 @@ func Decode(r *http.Request, i interface{}) error {
 //		FilterClientIds []int `query:"id,form"` // implicitly imploded
 //	}
 //
-// Use encoding.TextUnmarshaller to implement custom decoding.
+// Use encoding.TextUnmarshaler to implement custom decoding.
 //
 // Decoding of request headers is NOT yet implemented.
 //
