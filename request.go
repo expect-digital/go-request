@@ -162,8 +162,6 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 		return errors.New("call of Decode passes pointer to non-struct as second argument")
 	}
 
-	t := v.Type()
-
 	// query values lookup by its original and lowercased name
 	const doubleSize = 2
 	query := make(map[string][]string, doubleSize*len(r.URL.Query()))
@@ -179,13 +177,10 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 		query[lower] = qv
 	}
 
-	for i := 0; i < v.NumField(); i++ {
-		fv := v.Field(i)
-		ft := t.Field(i)
-
-		tagValue, ok := ft.Tag.Lookup("body")
+	for _, field := range flattenFields(v) {
+		tagValue, ok := field.Type.Tag.Lookup("body")
 		if ok {
-			err := decodeBody(r, tagValue, fv.Addr().Interface())
+			err := decodeBody(r, tagValue, field.Value.Addr().Interface())
 			if err != nil {
 				return err
 			}
@@ -193,7 +188,7 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 			continue
 		}
 
-		_, ok = ft.Tag.Lookup("header")
+		_, ok = field.Type.Tag.Lookup("header")
 		if ok {
 			err := decodeHeaders()
 			if err != nil {
@@ -203,26 +198,75 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 			continue
 		}
 
-		tagValue, ok = ft.Tag.Lookup("path")
+		tagValue, ok = field.Type.Tag.Lookup("path")
 		if ok {
 			if d.Path.Get == nil {
 				continue
 			}
 
-			err := setValue(fv, []string{d.Path.Get(r, tagValue)})
+			err := setValue(field.Value, []string{d.Path.Get(r, tagValue)})
 			if err != nil {
 				return fmt.Errorf("path '%s': %w", tagValue, err)
 			}
 		}
 
 		// query params
-		err := decodeQuery(d.Query, fv, ft, query)
+		err := decodeQuery(d.Query, field.Value, field.Type, query)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+type field struct {
+	Value reflect.Value
+	Type  reflect.StructField
+}
+
+// flattenFields flattens all fields of struct, the following fields are not flattened:
+// - fields having "body" field tag;
+// - fields having "query" field tag with "deep" serialization;
+// - fields having encoding.TextUnmarshaler interface.
+func flattenFields(v reflect.Value) []field {
+	ft := v.Type()
+
+	fields := make([]field, 0, ft.NumField())
+
+	for i := 0; i < ft.NumField(); i++ {
+		sfv := v.Field(i)
+		sft := ft.Field(i)
+
+		if _, ok := sfv.Addr().Interface().(encoding.TextUnmarshaler); ok {
+			fields = append(fields, field{Value: sfv, Type: sft})
+			continue
+		}
+
+		if sfv.Kind() == reflect.Struct {
+			deepQueryOrBody := func() bool {
+				for _, s := range strings.Split(sft.Tag.Get("query"), ",") {
+					if s == "deep" {
+						return true
+					}
+				}
+
+				_, ok := sft.Tag.Lookup("body")
+
+				return ok
+			}()
+
+			if deepQueryOrBody {
+				fields = append(fields, field{Value: sfv, Type: sft})
+			} else {
+				fields = append(fields, flattenFields(sfv)...)
+			}
+		} else {
+			fields = append(fields, field{Value: sfv, Type: sft})
+		}
+	}
+
+	return fields
 }
 
 type fieldConf struct {

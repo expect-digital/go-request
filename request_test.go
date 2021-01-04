@@ -484,7 +484,7 @@ func TestDecodeQueryDeep(t *testing.T) {
 
 type Sort struct {
 	Name string
-	ASC  bool
+	Asc  bool
 }
 
 func (s *Sort) UnmarshalText(text []byte) error {
@@ -494,7 +494,7 @@ func (s *Sort) UnmarshalText(text []byte) error {
 	}
 
 	s.Name = words[0]
-	s.ASC = len(words) == 1 || strings.ToLower(words[1]) == "asc"
+	s.Asc = len(words) == 1 || strings.ToLower(words[1]) == "asc"
 
 	return nil
 }
@@ -508,7 +508,7 @@ func TestDecodeUnmarshalText(t *testing.T) {
 
 	assert.NoError(t, Decode(r, &req))
 	assert.Equal(t, "name", req.Sort.Name)
-	assert.True(t, req.Sort.ASC)
+	assert.True(t, req.Sort.Asc)
 }
 
 func TestDecodeJSONBody(t *testing.T) {
@@ -553,5 +553,32 @@ func TestDecoder_DecodePath(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/clients/"+strconv.Itoa(id), nil)
 
 		return assert.NoError(t, dec.Decode(r, &req)) && assert.Equal(t, id, req.ClientId)
+	}, nil))
+}
+
+func TestDecodeEmbeddedStructs(t *testing.T) {
+	type Range struct {
+		Start int `query:"rangeStart"`
+		End   int `query:"rangeEnd"`
+	}
+
+	assert.NoError(t, quick.Check(func(rangeStart, rangeEnd int) bool {
+		query := url.Values{}
+		query.Set("rangeStart", strconv.Itoa(rangeStart))
+		query.Set("rangeEnd", strconv.Itoa(rangeEnd))
+		query.Set("sort", "name")
+
+		r := httptest.NewRequest(http.MethodGet, "/?"+query.Encode(), nil)
+
+		var req struct {
+			Sort
+			Range
+		}
+
+		return assert.NoError(t, Decode(r, &req)) &&
+			assert.Equal(t, rangeStart, req.Range.Start) &&
+			assert.Equal(t, rangeEnd, req.Range.End) &&
+			assert.Equal(t, "name", req.Sort.Name) &&
+			assert.True(t, req.Sort.Asc)
 	}, nil))
 }
