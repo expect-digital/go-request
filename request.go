@@ -1,10 +1,13 @@
-// Package request implements simple decoding of http request - queries, headers and body - into golang struct
+// Package request implements simple decoding of http request - url path, queries, headers and body - into golang struct
 // for easier consumption, resulting in less code boilerplate.
 //
 // Implementation is based on OpenAPI 3 specification https://swagger.io/docs/specification/about/.
 //
 //	func (r *http.Request, w *http.Response) {
 //		var req struct {
+//			// path - requires Decoder.Path.Get to get value of path parameter
+//			Id `path:"id"`
+//
 //			// query params
 //			ExplodedIds []int `query:"id"`           // ?id=1&id=2&id=3
 //			ImplodedIds []int `query:"ids,imploded"` // ?ids=1,2,3
@@ -22,6 +25,7 @@
 package request
 
 import (
+	"encoding"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -124,6 +128,8 @@ func Decode(r *http.Request, i interface{}) error {
 //	var req struct {
 //		FilterClientIds []int `query:"id,form"` // implicitly imploded
 //	}
+//
+// Use encoding.TextUnmarshaller to implement custom decoding.
 //
 // Decoding of request headers is NOT yet implemented.
 //
@@ -373,41 +379,47 @@ func setValue(rv reflect.Value, values []string) error {
 
 	bitSize := func() int { return int(rv.Type().Size()) * bitsPerByte }
 
+	value := values[0]
+
+	if e, ok := rv.Addr().Interface().(encoding.TextUnmarshaler); ok {
+		return e.UnmarshalText([]byte(value))
+	}
+
 	switch kind := rv.Kind(); kind {
 	default:
 		return fmt.Errorf("unknown type: %s", kind)
 	case reflect.Bool:
-		v, err := strconv.ParseBool(values[0])
+		v, err := strconv.ParseBool(value)
 		if err != nil {
 			return err
 		}
 
 		rv.SetBool(v)
 	case reflect.String:
-		rv.SetString(values[0])
+		rv.SetString(value)
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint:
-		v, err := strconv.ParseUint(values[0], 10, bitSize())
+		v, err := strconv.ParseUint(value, 10, bitSize())
 		if err != nil {
 			return err
 		}
 
 		rv.SetUint(v)
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
-		v, err := strconv.ParseInt(values[0], 10, bitSize())
+		v, err := strconv.ParseInt(value, 10, bitSize())
 		if err != nil {
 			return err
 		}
 
 		rv.SetInt(v)
 	case reflect.Float32, reflect.Float64:
-		v, err := strconv.ParseFloat(values[0], bitSize())
+		v, err := strconv.ParseFloat(value, bitSize())
 		if err != nil {
 			return err
 		}
 
 		rv.SetFloat(v)
 	case reflect.Complex64, reflect.Complex128:
-		v, err := strconv.ParseComplex(values[0], bitSize())
+		v, err := strconv.ParseComplex(value, bitSize())
 		if err != nil {
 			return err
 		}

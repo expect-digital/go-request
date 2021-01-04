@@ -1,6 +1,7 @@
 package request
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -479,6 +480,35 @@ func TestDecodeQueryDeep(t *testing.T) {
 
 		return assert.NoError(t, Decode(r, &req)) && assert.Equal(t, v, req.Filter)
 	}, nil))
+}
+
+type Sort struct {
+	Name string
+	ASC  bool
+}
+
+func (s *Sort) UnmarshalText(text []byte) error {
+	words := strings.Split(string(text), ",")
+	if len(words) > 2 {
+		return fmt.Errorf("incorrectly formatted sort: %s", text)
+	}
+
+	s.Name = words[0]
+	s.ASC = len(words) == 1 || strings.ToLower(words[1]) == "asc"
+
+	return nil
+}
+
+func TestDecodeUnmarshalText(t *testing.T) {
+	var req struct {
+		Sort
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/?sort=name", nil)
+
+	assert.NoError(t, Decode(r, &req))
+	assert.Equal(t, "name", req.Sort.Name)
+	assert.True(t, req.Sort.ASC)
 }
 
 func TestDecodeJSONBody(t *testing.T) {
