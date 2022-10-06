@@ -21,7 +21,6 @@
 //			// ...
 //		}
 //	}
-//
 package request
 
 import (
@@ -112,7 +111,7 @@ func Decode(r *http.Request, i interface{}) error {
 //		Ids []int `query:"id,imploded` // form by default
 //	}
 //
-// 	// pipe delimited - ?id=1|2|3
+//	// pipe delimited - ?id=1|2|3
 //	var req struct {
 //		Id []int `query:",pipe" // implicitly imploded
 //	}
@@ -237,6 +236,11 @@ func flattenFields(v reflect.Value) []field {
 	for i := 0; i < ft.NumField(); i++ {
 		sfv := v.Field(i)
 		sft := ft.Field(i)
+
+		// NOTE: ignore unexported fields in struct.
+		if !sft.IsExported() {
+			continue
+		}
 
 		if _, ok := sfv.Addr().Interface().(encoding.TextUnmarshaler); ok {
 			fields = append(fields, field{Value: sfv, Type: sft})
