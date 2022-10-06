@@ -282,7 +282,7 @@ type fieldConf struct {
 
 func parseFieldTag(queryConf QueryConf, s string) fieldConf {
 	conf := fieldConf{exploded: queryConf.Exploded, style: queryConf.Style}
-	confString := strings.SplitN(s, ",", 2)
+	confString := strings.SplitN(s, ",", 2) // nolint: gomnd
 
 	conf.name = strings.TrimSpace(confString[0])
 
@@ -444,14 +444,14 @@ func setValue(rv reflect.Value, values []string) error {
 	case reflect.String:
 		rv.SetString(value)
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint:
-		v, err := strconv.ParseUint(value, 10, bitSize())
+		v, err := strconv.ParseUint(value, 10, bitSize()) // nolint: gomnd
 		if err != nil {
 			return err
 		}
 
 		rv.SetUint(v)
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
-		v, err := strconv.ParseInt(value, 10, bitSize())
+		v, err := strconv.ParseInt(value, 10, bitSize()) // nolint: gomnd
 		if err != nil {
 			return err
 		}
