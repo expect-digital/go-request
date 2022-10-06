@@ -21,7 +21,6 @@
 //			// ...
 //		}
 //	}
-//
 package request
 
 import (
@@ -112,7 +111,7 @@ func Decode(r *http.Request, i interface{}) error {
 //		Ids []int `query:"id,imploded` // form by default
 //	}
 //
-// 	// pipe delimited - ?id=1|2|3
+//	// pipe delimited - ?id=1|2|3
 //	var req struct {
 //		Id []int `query:",pipe" // implicitly imploded
 //	}
@@ -238,6 +237,11 @@ func flattenFields(v reflect.Value) []field {
 		sfv := v.Field(i)
 		sft := ft.Field(i)
 
+		// NOTE: ignore unexported fields in struct.
+		if !sft.IsExported() {
+			continue
+		}
+
 		if _, ok := sfv.Addr().Interface().(encoding.TextUnmarshaler); ok {
 			fields = append(fields, field{Value: sfv, Type: sft})
 			continue
@@ -278,7 +282,7 @@ type fieldConf struct {
 
 func parseFieldTag(queryConf QueryConf, s string) fieldConf {
 	conf := fieldConf{exploded: queryConf.Exploded, style: queryConf.Style}
-	confString := strings.SplitN(s, ",", 2)
+	confString := strings.SplitN(s, ",", 2) // nolint: gomnd
 
 	conf.name = strings.TrimSpace(confString[0])
 
@@ -440,14 +444,14 @@ func setValue(rv reflect.Value, values []string) error {
 	case reflect.String:
 		rv.SetString(value)
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint:
-		v, err := strconv.ParseUint(value, 10, bitSize())
+		v, err := strconv.ParseUint(value, 10, bitSize()) // nolint: gomnd
 		if err != nil {
 			return err
 		}
 
 		rv.SetUint(v)
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
-		v, err := strconv.ParseInt(value, 10, bitSize())
+		v, err := strconv.ParseInt(value, 10, bitSize()) // nolint: gomnd
 		if err != nil {
 			return err
 		}
