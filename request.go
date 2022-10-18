@@ -473,6 +473,12 @@ func setValue(rv reflect.Value, values []string) error {
 		rv.SetComplex(v)
 	case reflect.Slice:
 		t := rv.Type()
+
+		if t.Elem().Kind() == reflect.Uint8 {
+			rv.SetBytes([]byte(value))
+			break
+		}
+
 		slice := reflect.MakeSlice(t, 0, len(values))
 
 		if len(values) > 0 {
