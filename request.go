@@ -474,7 +474,7 @@ func setValue(rv reflect.Value, values []string) error {
 	case reflect.Slice:
 		t := rv.Type()
 
-		if t == reflect.TypeOf([]byte(nil)) {
+		if t.Elem().Kind() == reflect.Uint8 {
 			rv.SetBytes([]byte(value))
 			break
 		}
