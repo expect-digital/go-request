@@ -73,6 +73,22 @@ func TestDecodeQueryString(t *testing.T) {
 	}, nil))
 }
 
+func TestDecodeQueryStringToByteSlice(t *testing.T) {
+	assert.NoError(t, quick.Check(func(v string) bool {
+		var req struct {
+			Value []byte `query:"value"`
+		}
+
+		queries := url.Values{}
+		queries.Set("value", v)
+
+		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+
+		assert.NoError(t, Decode(r, &req))
+		return string(req.Value) == v
+	}, nil))
+}
+
 func TestDecodeQueryInt8(t *testing.T) {
 	assert.NoError(t, quick.Check(func(v int8) bool {
 		var req struct {
