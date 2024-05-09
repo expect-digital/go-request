@@ -630,7 +630,7 @@ func TestDecodeXMLBody(t *testing.T) {
 
 	var req struct {
 		Body struct {
-			ID int
+			ID int `xml:"Id"`
 		} `body:"xml"`
 	}
 
