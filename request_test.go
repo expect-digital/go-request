@@ -35,6 +35,7 @@ func TestDecodeQueryBool(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -53,6 +54,7 @@ func TestDecodeQuerySlice(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return assert.ElementsMatch(t, v, req.Value)
 	}, nil))
 }
@@ -69,6 +71,7 @@ func TestDecodeQueryString(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -85,6 +88,7 @@ func TestDecodeQueryStringToByteSlice(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return string(req.Value) == v
 	}, nil))
 }
@@ -101,6 +105,7 @@ func TestDecodeQueryInt8(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -117,6 +122,7 @@ func TestDecodeQueryInt16(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -133,6 +139,7 @@ func TestDecodeQueryInt32(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -149,6 +156,7 @@ func TestDecodeQueryInt64(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -165,6 +173,7 @@ func TestDecodeQueryInt(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -181,6 +190,7 @@ func TestDecodeQueryUint8(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -197,6 +207,7 @@ func TestDecodeQueryUint16(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -213,6 +224,7 @@ func TestDecodeQueryUint32(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -229,6 +241,7 @@ func TestDecodeQueryUint64(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -245,6 +258,7 @@ func TestDecodeQueryUint(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -261,6 +275,7 @@ func TestDecodeQueryFloat32(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -277,6 +292,7 @@ func TestDecodeQueryFloat64(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -293,6 +309,7 @@ func TestDecodeQueryComplex64(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -309,6 +326,7 @@ func TestDecodeQueryComplex128(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return req.Value == v
 	}, nil))
 }
@@ -332,6 +350,7 @@ func TestDecodeQueryStringSliceImploded(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return assert.ElementsMatch(t, v, req.Value)
 	}, nil))
 }
@@ -351,6 +370,7 @@ func TestDecodeQueryStringSliceExpanded(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return assert.ElementsMatch(t, v, req.Value) && assert.ElementsMatch(t, v, req.Default)
 	}, nil))
 }
@@ -374,6 +394,7 @@ func TestDecodeQueryStringSliceSpace(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return assert.ElementsMatch(t, v, req.Value)
 	}, nil))
 }
@@ -396,6 +417,7 @@ func TestDecodeQueryStringSlicePipe(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 		assert.NoError(t, Decode(r, &req))
+
 		return assert.ElementsMatch(t, v, req.Value)
 	}, nil))
 }
