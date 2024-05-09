@@ -1,3 +1,5 @@
+run:
+  timeout: 2m # increased timeout for running check on Windows in GitHub Actions
 linters:
   enable:
     - bodyclose
@@ -7,10 +9,7 @@ linters:
     - gocyclo
     - godot
     - gofmt
-    - gomnd
     - gosec
-    - interfacer
-    - maligned
     - misspell
     - nakedret
     - nestif
