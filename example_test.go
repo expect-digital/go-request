@@ -19,12 +19,12 @@ func ExampleDecode() {
 	var req struct {
 		// query params
 		FilterType      []string `query:"filterType,imploded"`
-		ClientId        int
-		FilterClientIds []int `query:",pipe,imploded"`
+		FilterClientIDs []int    `query:",pipe,imploded"`
+		ClientID        int
 
 		// body
 		Client struct {
-			Id int
+			ID int
 		} `body:"json"`
 	}
 

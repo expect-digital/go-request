@@ -1,19 +1,58 @@
 run:
   timeout: 2m # increased timeout for running check on Windows in GitHub Actions
 linters:
-  enable:
-    - bodyclose
-    - gocognit
+  enable-all: true
+  disable:
+    - asasalint
+    - deadcode
+    - depguard
+    - dupl
+    - execinquery
+    - exhaustivestruct
+    - exhaustruct
+    - forbidigo
+    - funlen
+    - gci
+    - ginkgolinter
     - goconst
-    - gocritic
+    - gochecknoglobals
+    - gochecknoinits
     - gocyclo
-    - godot
+    - godox
+    - err113 #TODO(jhorsts): resolve in another PR
     - gofmt
-    - gosec
-    - misspell
-    - nakedret
-    - nestif
-    - prealloc
-    - unconvert
-    - unparam
-    - wsl
+    - goheader
+    - goimports
+    - golint
+    - gomnd
+    - gomodguard
+    - gosmopolitan
+    - grouper
+    - ifshort
+    - inamedparam
+    - interfacer
+    - loggercheck
+    - maintidx
+    - maligned
+    - nlreturn
+    - nonamedreturns
+    - nosnakecase
+    - promlinter
+    - revive
+    - scopelint
+    - structcheck
+    - tagliatelle
+    - testableexamples
+    - testpackage
+    - thelper
+    - tparallel
+    - varcheck
+    - varnamelen
+    - wastedassign
+    - whitespace
+    - zerologlint
+linters-settings:
+  cyclop:
+    max-complexity: 30
+  govet:
+    enable-all: true
