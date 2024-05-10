@@ -12,19 +12,19 @@ import (
 func ExampleDecode() {
 	r := httptest.NewRequest(
 		http.MethodPost,
-		"/?filterType=pending,approved&clientId=4&filterClientids=1|2|3",
+		"/?filterType=pending,approved&clientId=4&filterClientIds=1|2|3",
 		strings.NewReader(`{"id":1}`),
 	)
 
 	var req struct {
 		// query params
 		FilterType      []string `query:"filterType,imploded"`
-		ClientId        int
-		FilterClientIds []int `query:",pipe,imploded"`
+		FilterClientIDs []int    `query:"filterClientIds,pipe,imploded"`
+		ClientID        int      `qyery:"clientId"`
 
 		// body
 		Client struct {
-			Id int
+			ID int `json:"id"`
 		} `body:"json"`
 	}
 
@@ -32,7 +32,7 @@ func ExampleDecode() {
 
 	fmt.Printf("%+v\n", req)
 	// Output:
-	// {FilterType:[pending approved] ClientId:4 FilterClientIds:[1 2 3] Client:{Id:1}}
+	// {FilterType:[pending approved] FilterClientIDs:[1 2 3] ClientID:4 Client:{ID:1}}
 }
 
 func ExampleDecoder_Decode() {

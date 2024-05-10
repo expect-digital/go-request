@@ -1,0 +1,6 @@
+{
+  "editor.formatOnSave": true,
+  "go.testOnSave": true,
+  "go.lintTool": "golangci-lint",
+  "go.coverOnSave": true
+}

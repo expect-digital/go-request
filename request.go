@@ -14,7 +14,7 @@
 //			Search string                            // ?search=foobar
 //
 //			// body
-//			Client Client `body:"json"`
+//			Client model.Client `body:"json"`
 //		}
 //
 //		if err := request.Decode(r, &req); err != nil {
@@ -61,12 +61,12 @@ type PathConf struct {
 }
 
 type QueryConf struct {
-	// true - "?id=1&id=2&id=3", false - "?id=1,2,3"
-	Exploded bool
 	// one of QueryStyleForm, QueryStyleSpace, QueryStylePipe or QueryStyleDeep
 	Style string
 	// one of QueryDelimiterPipe, QueryDelimiterSpace, QueryDelimiterComma
 	Delimiter string
+	// true - "?id=1&id=2&id=3", false - "?id=1,2,3"
+	Exploded bool
 }
 
 type Decoder struct {
@@ -233,7 +233,7 @@ func flattenFields(v reflect.Value) []field {
 
 	fields := make([]field, 0, ft.NumField())
 
-	for i := 0; i < ft.NumField(); i++ {
+	for i := range ft.NumField() {
 		sfv := v.Field(i)
 		sft := ft.Field(i)
 
@@ -282,7 +282,9 @@ type fieldConf struct {
 
 func parseFieldTag(queryConf QueryConf, s string) fieldConf {
 	conf := fieldConf{exploded: queryConf.Exploded, style: queryConf.Style}
-	confString := strings.SplitN(s, ",", 2) // nolint: gomnd
+
+	const n = 2
+	confString := strings.SplitN(s, ",", n)
 
 	conf.name = strings.TrimSpace(confString[0])
 
@@ -351,21 +353,34 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 }
 
 func decodeBody(r *http.Request, fieldTag string, i interface{}) error {
-	accept := r.Header.Get("accept")
+	if fieldTag == "" {
+		accept := strings.ToLower(r.Header.Get("Accept"))
 
-	if fieldTag == "json" || fieldTag == "" && strings.HasPrefix(accept, "application/json") {
-		err := json.NewDecoder(r.Body).Decode(i)
-		if err != nil {
-			return err
-		}
-	} else if fieldTag == "xml" || fieldTag == "" && strings.HasPrefix(accept, "application/xml") {
-		err := xml.NewDecoder(r.Body).Decode(i)
-		if err != nil {
-			return err
+		if strings.HasPrefix(accept, "application/json") {
+			fieldTag = "json"
+		} else if strings.HasPrefix(accept, "application/xml") {
+			fieldTag = "xml"
 		}
 	}
 
-	return nil
+	switch fieldTag {
+	default:
+		return fmt.Errorf(`want "xml" or "json", got unsupported "%s"`, fieldTag)
+	case "json":
+		err := json.NewDecoder(r.Body).Decode(i)
+		if err != nil {
+			return fmt.Errorf("decode JSON body: %w", err)
+		}
+
+		return nil
+	case "xml":
+		err := xml.NewDecoder(r.Body).Decode(i)
+		if err != nil {
+			return fmt.Errorf("decode XML body: %w", err)
+		}
+
+		return nil
+	}
 }
 
 func decodeHeaders() error {
@@ -428,46 +443,50 @@ func setValue(rv reflect.Value, values []string) error {
 	value := values[0]
 
 	if e, ok := rv.Addr().Interface().(encoding.TextUnmarshaler); ok {
-		return e.UnmarshalText([]byte(value))
+		if err := e.UnmarshalText([]byte(value)); err != nil {
+			return fmt.Errorf("set values %v: %w", values, err)
+		}
+
+		return nil
 	}
 
-	switch kind := rv.Kind(); kind {
+	switch kind := rv.Kind(); kind { //nolint:exhaustive
 	default:
 		return fmt.Errorf("unknown type: %s", kind)
 	case reflect.Bool:
 		v, err := strconv.ParseBool(value)
 		if err != nil {
-			return err
+			return err //nolint:wrapcheck
 		}
 
 		rv.SetBool(v)
 	case reflect.String:
 		rv.SetString(value)
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint:
-		v, err := strconv.ParseUint(value, 10, bitSize()) // nolint: gomnd
+		v, err := strconv.ParseUint(value, 10, bitSize())
 		if err != nil {
-			return err
+			return err //nolint:wrapcheck
 		}
 
 		rv.SetUint(v)
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
-		v, err := strconv.ParseInt(value, 10, bitSize()) // nolint: gomnd
+		v, err := strconv.ParseInt(value, 10, bitSize())
 		if err != nil {
-			return err
+			return err //nolint:wrapcheck
 		}
 
 		rv.SetInt(v)
 	case reflect.Float32, reflect.Float64:
 		v, err := strconv.ParseFloat(value, bitSize())
 		if err != nil {
-			return err
+			return err //nolint:wrapcheck
 		}
 
 		rv.SetFloat(v)
 	case reflect.Complex64, reflect.Complex128:
 		v, err := strconv.ParseComplex(value, bitSize())
 		if err != nil {
-			return err
+			return err //nolint:wrapcheck
 		}
 
 		rv.SetComplex(v)
@@ -513,7 +532,7 @@ func setDeepValue(queryConf QueryConf, rv reflect.Value, values map[string][]str
 		return errors.New("expected struct for deep style")
 	}
 
-	for i := 0; i < rv.NumField(); i++ {
+	for i := range rv.NumField() {
 		sfv := rv.Field(i)
 		sft := rt.Field(i)
 
