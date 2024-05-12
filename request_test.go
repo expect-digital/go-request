@@ -5,375 +5,131 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"testing/quick"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
+
+func testQuery[T comparable](t *testing.T) {
+	t.Helper()
+
+	err := quick.Check(func(v T) bool {
+		var req struct {
+			Value T `query:"value"`
+		}
+
+		queries := make(url.Values)
+		queries.Set("value", fmt.Sprint(v))
+
+		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+
+		if err := Decode(r, &req); err != nil {
+			t.Log(err)
+			return false
+		}
+
+		return req.Value == v
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 func TestDecodePointerToStruct(t *testing.T) {
 	t.Parallel()
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	require.EqualError(t, Decode(r, struct{}{}), "call of Decode passes non-pointer as second argument")
+	want := "call of Decode passes non-pointer as second argument"
+	if err := Decode(r, struct{}{}); err == nil || err.Error() != want {
+		t.Errorf(`want "%s", got "%s"`, want, err)
+	}
 
 	var i int
 
-	require.EqualError(t, Decode(r, &i), "call of Decode passes pointer to non-struct as second argument")
+	want = "call of Decode passes pointer to non-struct as second argument"
+	if err := Decode(r, &i); err == nil || err.Error() != want {
+		t.Errorf(`want "%s", got "%s"`, want, err)
+	}
 }
 
-func TestDecodeQueryBool(t *testing.T) {
+func TestDecodeQuery(t *testing.T) {
 	t.Parallel()
 
-	assert.NoError(t, quick.Check(func(v bool) bool {
-		var req struct {
-			Value bool `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatBool(v))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
+	testQuery[bool](t)
+	testQuery[string](t)
+	testQuery[uint8](t) // byte
+	testQuery[uint16](t)
+	testQuery[uint32](t)
+	testQuery[uint64](t) // uint
+	testQuery[int8](t)
+	testQuery[int16](t)
+	testQuery[int32](t)
+	testQuery[int64](t) // int
+	testQuery[float32](t)
+	testQuery[float64](t)
+	testQuery[complex64](t)
+	testQuery[complex128](t)
 }
 
 func TestDecodeQuerySlice(t *testing.T) {
 	t.Parallel()
 
-	assert.NoError(t, quick.Check(func(v []string) bool {
+	err := quick.Check(func(v []string) bool {
 		var req struct {
 			Value []string `query:"value"`
 		}
 
-		queries := url.Values{}
+		queries := make(url.Values)
 		for i := range v {
 			queries.Add("value", v[i])
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		assert.NoError(t, Decode(r, &req))
-
-		return assert.ElementsMatch(t, v, req.Value)
-	}, nil))
-}
-
-func TestDecodeQueryString(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v string) bool {
-		var req struct {
-			Value string `query:"value"`
+		if err := Decode(r, &req); err != nil {
+			t.Log(err)
+			return false
 		}
 
-		queries := url.Values{}
-		queries.Set("value", v)
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
+		return slices.Equal(v, req.Value)
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-func TestDecodeQueryStringToByteSlice(t *testing.T) {
+func TestDecodeQueryByteSlice(t *testing.T) {
 	t.Parallel()
 
-	assert.NoError(t, quick.Check(func(v string) bool {
+	err := quick.Check(func(v string) bool {
 		var req struct {
 			Value []byte `query:"value"`
 		}
 
-		queries := url.Values{}
+		queries := make(url.Values)
 		queries.Set("value", v)
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		assert.NoError(t, Decode(r, &req))
+		if err := Decode(r, &req); err != nil {
+			t.Log(err)
+			return false
+		}
 
 		return string(req.Value) == v
-	}, nil))
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-func TestDecodeQueryInt8(t *testing.T) {
+func TestDecodeQuerySliceImploded(t *testing.T) {
 	t.Parallel()
 
-	assert.NoError(t, quick.Check(func(v int8) bool {
-		var req struct {
-			Value int8 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.Itoa(int(v)))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryInt16(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v int16) bool {
-		var req struct {
-			Value int16 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.Itoa(int(v)))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryInt32(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v int32) bool {
-		var req struct {
-			Value int32 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.Itoa(int(v)))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryInt64(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v int64) bool {
-		var req struct {
-			Value int64 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatInt(v, 10))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryInt(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v int) bool {
-		var req struct {
-			Value int `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.Itoa(v))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryUint8(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v uint8) bool {
-		var req struct {
-			Value uint8 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatUint(uint64(v), 10))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryUint16(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v uint16) bool {
-		var req struct {
-			Value uint16 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatUint(uint64(v), 10))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryUint32(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v uint32) bool {
-		var req struct {
-			Value uint32 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatUint(uint64(v), 10))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryUint64(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v uint64) bool {
-		var req struct {
-			Value uint64 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatUint(v, 10))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryUint(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v uint) bool {
-		var req struct {
-			Value uint `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatUint(uint64(v), 10))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryFloat32(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v float32) bool {
-		var req struct {
-			Value float32 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatFloat(float64(v), 'f', -1, 32))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryFloat64(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v float64) bool {
-		var req struct {
-			Value float64 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatFloat(v, 'f', -1, 64))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryComplex64(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v complex64) bool {
-		var req struct {
-			Value complex64 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatComplex(complex128(v), 'f', -1, 64))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryComplex128(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v complex128) bool {
-		var req struct {
-			Value complex128 `query:"value"`
-		}
-
-		queries := url.Values{}
-		queries.Set("value", strconv.FormatComplex(v, 'f', -1, 128))
-
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
-
-		assert.NoError(t, Decode(r, &req))
-
-		return req.Value == v
-	}, nil))
-}
-
-func TestDecodeQueryStringSliceImploded(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, quick.Check(func(v []string) bool {
+	err := quick.Check(func(v []string) bool {
 		var req struct {
 			Value []string `query:"value,imploded"`
 		}
@@ -383,45 +139,57 @@ func TestDecodeQueryStringSliceImploded(t *testing.T) {
 			v[i] = strings.ReplaceAll(v[i], ",", "")
 		}
 
-		queries := url.Values{}
+		queries := make(url.Values)
 		if len(v) > 0 {
 			queries.Set("value", strings.Join(v, QueryDelimiterComma))
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		assert.NoError(t, Decode(r, &req))
+		if err := Decode(r, &req); err != nil {
+			t.Log(err)
+			return false
+		}
 
-		return assert.ElementsMatch(t, v, req.Value)
-	}, nil))
+		return slices.Equal(v, req.Value)
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-func TestDecodeQueryStringSliceExpanded(t *testing.T) {
+func TestDecodeQuerySliceExpanded(t *testing.T) {
 	t.Parallel()
 
-	assert.NoError(t, quick.Check(func(v []string) bool {
+	err := quick.Check(func(v []string) bool {
 		var req struct {
 			Default []string `query:"value"`
 			Value   []string `query:"value,expanded"`
 		}
 
-		queries := url.Values{}
+		queries := make(url.Values)
 		for i := range v {
 			queries.Add("value", v[i])
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		assert.NoError(t, Decode(r, &req))
+		if err := Decode(r, &req); err != nil {
+			t.Log(err)
+			return false
+		}
 
-		return assert.ElementsMatch(t, v, req.Value) && assert.ElementsMatch(t, v, req.Default)
-	}, nil))
+		return slices.Equal(v, req.Value) && slices.Equal(v, req.Default)
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-func TestDecodeQueryStringSliceSpace(t *testing.T) {
+func TestDecodeQuerySliceSpace(t *testing.T) {
 	t.Parallel()
 
-	assert.NoError(t, quick.Check(func(v []string) bool {
+	err := quick.Check(func(v []string) bool {
 		var req struct {
 			Value []string `query:"value,space"`
 		}
@@ -431,23 +199,29 @@ func TestDecodeQueryStringSliceSpace(t *testing.T) {
 			v[i] = strings.ReplaceAll(v[i], QueryDelimiterSpace, "")
 		}
 
-		queries := url.Values{}
+		queries := make(url.Values)
 		if len(v) > 0 {
 			queries.Set("value", strings.Join(v, QueryDelimiterSpace))
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		assert.NoError(t, Decode(r, &req))
+		if err := Decode(r, &req); err != nil {
+			t.Log(err)
+			return false
+		}
 
-		return assert.ElementsMatch(t, v, req.Value)
-	}, nil))
+		return slices.Equal(v, req.Value)
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-func TestDecodeQueryStringSlicePipe(t *testing.T) {
+func TestDecodeQuerySlicePipe(t *testing.T) {
 	t.Parallel()
 
-	assert.NoError(t, quick.Check(func(v []string) bool {
+	err := quick.Check(func(v []string) bool {
 		var req struct {
 			Value []string `query:"value,pipe"`
 		}
@@ -456,20 +230,26 @@ func TestDecodeQueryStringSlicePipe(t *testing.T) {
 			v[i] = strings.ReplaceAll(v[i], QueryDelimiterPipe, "")
 		}
 
-		queries := url.Values{}
+		queries := make(url.Values)
 		if len(v) > 0 {
 			queries.Set("value", strings.Join(v, QueryDelimiterPipe))
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		assert.NoError(t, Decode(r, &req))
+		if err := Decode(r, &req); err != nil {
+			t.Log(err)
+			return false
+		}
 
-		return assert.ElementsMatch(t, v, req.Value)
-	}, nil))
+		return slices.Equal(v, req.Value)
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-func TestDecodeQueryStringSliceEmpty(t *testing.T) {
+func TestDecodeQuerySliceEmpty(t *testing.T) {
 	t.Parallel()
 
 	var req struct {
@@ -478,8 +258,14 @@ func TestDecodeQueryStringSliceEmpty(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?fields=", nil)
 
-	require.NoError(t, Decode(r, &req))
-	assert.Equal(t, []string{""}, req.Fields)
+	if err := Decode(r, &req); err != nil {
+		t.Error(err)
+	}
+
+	want := []string{""}
+	if !slices.Equal(want, req.Fields) {
+		t.Errorf("want %v, got %v", want, req.Fields)
+	}
 }
 
 func TestDecodeQueryOptional(t *testing.T) {
@@ -491,8 +277,13 @@ func TestDecodeQueryOptional(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	require.NoError(t, Decode(r, &req))
-	assert.False(t, req.Field)
+	if err := Decode(r, &req); err != nil {
+		t.Error(err)
+	}
+
+	if req.Field {
+		t.Error("want false, got true")
+	}
 }
 
 func TestDecodeQueryRequired(t *testing.T) {
@@ -502,11 +293,14 @@ func TestDecodeQueryRequired(t *testing.T) {
 		Field bool `query:"field,required"`
 	}
 
-	queries := url.Values{}
+	queries := make(url.Values)
 
 	r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-	assert.EqualError(t, Decode(r, &req), "query param 'field' is required")
+	want := "query param 'field' is required"
+	if err := Decode(r, &req); err == nil || err.Error() != want {
+		t.Errorf(`want "%s", got "%s"`, want, err)
+	}
 }
 
 func TestDecodeQueryFieldName(t *testing.T) {
@@ -518,26 +312,39 @@ func TestDecodeQueryFieldName(t *testing.T) {
 		FieldThree []string
 	}
 
-	expected := req{
+	want := req{
 		FieldOne:   "foo",
 		FieldTwo:   "bar",
-		FieldThree: []string{"fuzz", "bazz"},
+		FieldThree: []string{"bazz", "fuzz"}, // sorted
 	}
 
-	queries := url.Values{}
-	queries.Set("fIeLdOnE", expected.FieldOne)
-	queries.Set("fieldTwo", expected.FieldTwo)
+	queries := make(url.Values)
+	queries.Set("fIeLdOnE", want.FieldOne)
+	queries.Set("fieldTwo", want.FieldTwo)
 	queries.Add("fieldthree", "fuzz")
 	queries.Add("FIELDTHREE", "bazz")
 
 	r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-	var actual req
+	var got req
 
-	require.NoError(t, Decode(r, &actual))
-	assert.Equal(t, expected.FieldOne, actual.FieldOne)
-	assert.Equal(t, expected.FieldTwo, actual.FieldTwo)
-	assert.ElementsMatch(t, expected.FieldThree, actual.FieldThree)
+	if err := Decode(r, &got); err != nil {
+		t.Error(err)
+	}
+
+	if want.FieldOne != got.FieldOne {
+		t.Errorf("want %s, got %s", want.FieldOne, got.FieldOne)
+	}
+
+	if want.FieldTwo != got.FieldTwo {
+		t.Errorf("want %s, got %s", want.FieldTwo, got.FieldTwo)
+	}
+
+	slices.Sort(got.FieldThree)
+
+	if !slices.Equal(want.FieldThree, got.FieldThree) {
+		t.Errorf("want %v, got %s", want.FieldThree, got.FieldThree)
+	}
 }
 
 func TestDecodeQueryIgnore(t *testing.T) {
@@ -547,13 +354,18 @@ func TestDecodeQueryIgnore(t *testing.T) {
 		Field string `query:"-"`
 	}
 
-	queries := url.Values{}
+	queries := make(url.Values)
 	queries.Set("field", "foobar")
 
 	r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-	require.NoError(t, Decode(r, &req))
-	assert.Empty(t, req.Field)
+	if err := Decode(r, &req); err != nil {
+		t.Error(err)
+	}
+
+	if req.Field != "" {
+		t.Errorf("want empty, got %s", req.Field)
+	}
 }
 
 func TestDecodeQueryDeep(t *testing.T) {
@@ -564,8 +376,8 @@ func TestDecodeQueryDeep(t *testing.T) {
 		Gt     byte
 	}
 
-	assert.NoError(t, quick.Check(func(v Filter) bool {
-		query := url.Values{}
+	err := quick.Check(func(v Filter) bool {
+		query := make(url.Values)
 		query.Set("filter[find]", v.Search)
 		query.Set("filter[gt]", strconv.Itoa(int(v.Gt)))
 
@@ -575,8 +387,15 @@ func TestDecodeQueryDeep(t *testing.T) {
 			Filter `query:",deep"`
 		}
 
-		return assert.NoError(t, Decode(r, &req)) && assert.Equal(t, v, req.Filter)
-	}, nil))
+		if err := Decode(r, &req); err != nil {
+			t.Log(err)
+		}
+
+		return v == req.Filter
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 type Sort struct {
@@ -605,9 +424,17 @@ func TestDecodeUnmarshalText(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?sort=name", nil)
 
-	require.NoError(t, Decode(r, &req))
-	assert.Equal(t, "name", req.Sort.Name)
-	assert.True(t, req.Sort.Asc)
+	if err := Decode(r, &req); err != nil {
+		t.Error(err)
+	}
+
+	if req.Sort.Name != "name" {
+		t.Errorf(`want "name", got %s`, req.Sort.Name)
+	}
+
+	if !req.Sort.Asc {
+		t.Error("want true, got false")
+	}
 }
 
 func TestDecodeJSONBody(t *testing.T) {
@@ -621,8 +448,13 @@ func TestDecodeJSONBody(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"id":9}`))
 
-	require.NoError(t, Decode(r, &req))
-	assert.Equal(t, 9, req.Body.ID)
+	if err := Decode(r, &req); err != nil {
+		t.Error(err)
+	}
+
+	if req.Body.ID != 9 {
+		t.Errorf("want 9, got %d", req.Body.ID)
+	}
 }
 
 func TestDecodeXMLBody(t *testing.T) {
@@ -636,8 +468,13 @@ func TestDecodeXMLBody(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`<Body><Id>1</Id></Body>`))
 
-	require.NoError(t, Decode(r, &req))
-	assert.Equal(t, 1, req.Body.ID)
+	if err := Decode(r, &req); err != nil {
+		t.Error(err)
+	}
+
+	if req.Body.ID != 1 {
+		t.Errorf("want 1, got %d", req.Body.ID)
+	}
 }
 
 func TestDecoder_DecodePath(t *testing.T) {
@@ -650,15 +487,23 @@ func TestDecoder_DecodePath(t *testing.T) {
 		return v[len(v)-1]
 	}
 
-	assert.NoError(t, quick.Check(func(id int) bool {
+	err := quick.Check(func(id int) bool {
 		var req struct {
 			ClientID int `path:"id"`
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/clients/"+strconv.Itoa(id), nil)
 
-		return assert.NoError(t, dec.Decode(r, &req)) && assert.Equal(t, id, req.ClientID)
-	}, nil))
+		if err := dec.Decode(r, &req); err != nil {
+			t.Log(err)
+			return false
+		}
+
+		return id == req.ClientID
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestDecodeEmbeddedStructs(t *testing.T) {
@@ -669,8 +514,8 @@ func TestDecodeEmbeddedStructs(t *testing.T) {
 		End   int `query:"rangeEnd"`
 	}
 
-	assert.NoError(t, quick.Check(func(rangeStart, rangeEnd int) bool {
-		query := url.Values{}
+	err := quick.Check(func(rangeStart, rangeEnd int) bool {
+		query := make(url.Values)
 		query.Set("rangeStart", strconv.Itoa(rangeStart))
 		query.Set("rangeEnd", strconv.Itoa(rangeEnd))
 		query.Set("sort", "name")
@@ -682,10 +527,17 @@ func TestDecodeEmbeddedStructs(t *testing.T) {
 			Range
 		}
 
-		return assert.NoError(t, Decode(r, &req)) &&
-			assert.Equal(t, rangeStart, req.Range.Start) &&
-			assert.Equal(t, rangeEnd, req.Range.End) &&
-			assert.Equal(t, "name", req.Sort.Name) &&
-			assert.True(t, req.Sort.Asc)
-	}, nil))
+		if err := Decode(r, &req); err != nil {
+			t.Log(err)
+			return false
+		}
+
+		return rangeStart == req.Range.Start &&
+			rangeEnd == req.Range.End &&
+			req.Sort.Name == "name" &&
+			req.Sort.Asc
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
 }

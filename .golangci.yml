@@ -19,7 +19,7 @@ linters:
     - gochecknoinits
     - gocyclo
     - godox
-    - err113 #TODO(jhorsts): resolve in another PR
+    - err113
     - gofmt
     - goheader
     - goimports
