@@ -280,20 +280,26 @@ type fieldConf struct {
 	required bool
 }
 
-func parseFieldTag(queryConf QueryConf, s string) fieldConf {
-	conf := fieldConf{exploded: queryConf.Exploded, style: queryConf.Style}
+func parseFieldTag(queryConf QueryConf, tag string) fieldConf {
+	tag = strings.TrimSpace(tag)
+	parts := strings.Split(tag, ",")
 
-	const n = 2
-	confString := strings.SplitN(s, ",", n)
-
-	conf.name = strings.TrimSpace(confString[0])
-
-	if len(confString) == 1 {
-		return conf
+	if len(parts) <= 1 {
+		return fieldConf{
+			exploded: queryConf.Exploded,
+			style:    queryConf.Style,
+			name:     tag,
+		}
 	}
 
-	for _, v := range strings.Split(confString[1], ",") {
-		switch s := strings.TrimSpace(v); s {
+	conf := fieldConf{
+		exploded: queryConf.Exploded,
+		style:    queryConf.Style,
+		name:     strings.TrimSpace(parts[0]),
+	}
+
+	for _, part := range parts[1:] {
+		switch v := strings.TrimSpace(part); v {
 		case "required":
 			conf.required = true
 		case "exploded":
@@ -301,11 +307,11 @@ func parseFieldTag(queryConf QueryConf, s string) fieldConf {
 		case "imploded":
 			conf.exploded = false
 		case QueryStyleForm, QueryStylePipe, QueryStyleSpace:
-			conf.style = s
+			conf.style = v
 			// implicitly implode if style is specified
 			conf.exploded = false
 		case QueryStyleDeep:
-			conf.style = s
+			conf.style = v
 		}
 	}
 
@@ -316,9 +322,17 @@ func parseQueryValuesDeep(name string, query map[string][]string) map[string][]s
 	values := map[string][]string{}
 
 	for k := range query {
-		if strings.HasPrefix(k, name+"[") {
-			values[k[len(name)+1:len(k)-1]] = query[k]
+		propName, ok := strings.CutPrefix(k, name+"[")
+		if !ok {
+			continue
 		}
+
+		propName, ok = strings.CutSuffix(propName, "]")
+		if !ok {
+			continue
+		}
+
+		values[propName] = query[k]
 	}
 
 	return values
@@ -331,25 +345,26 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 		return nil, false
 	}
 
-	if conf.exploded {
+	if conf.exploded || len(values) == 0 {
 		return values, true
 	}
 
 	// imploded - take first value, ignore remaining
+	//
+	// TODO(jhorsts): OpenAPI does not specify what should happen in given instance. However,
+	// picking up the last value conforms more likely with developer expectations.
 	first := values[0]
 
-	var del string
+	delimiter := QueryDelimiterComma
 
 	switch conf.style {
-	default:
-		del = QueryDelimiterComma
 	case QueryStyleSpace:
-		del = QueryDelimiterSpace
+		delimiter = QueryDelimiterSpace
 	case QueryStylePipe:
-		del = QueryDelimiterPipe
+		delimiter = QueryDelimiterPipe
 	}
 
-	return strings.Split(first, del), true
+	return strings.Split(first, delimiter), true
 }
 
 func decodeBody(r *http.Request, fieldTag string, i interface{}) error {
@@ -428,6 +443,10 @@ func decodeQuery(queryConf QueryConf, fv reflect.Value, ft reflect.StructField, 
 }
 
 func setValue(rv reflect.Value, values []string) error {
+	if len(values) == 0 {
+		return nil
+	}
+
 	for rv.Kind() == reflect.Ptr {
 		if rv.IsNil() {
 			rv.Set(reflect.New(rv.Type().Elem()))

@@ -541,3 +541,20 @@ func TestDecodeEmbeddedStructs(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func BenchmarkDecode(b *testing.B) {
+	var err error
+
+	var req struct {
+		Value []string `query:"value"`
+		OK    bool     `query:"deep[ok]"`
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/?value=one,two,three&deep[ok]=1", nil)
+
+	for range b.N {
+		err = Decode(r, &req)
+	}
+
+	_ = err
+}
