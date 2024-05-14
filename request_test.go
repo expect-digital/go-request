@@ -126,7 +126,7 @@ func TestDecodeQueryByteSlice(t *testing.T) {
 	}
 }
 
-func TestDecodeQuerySliceImploded(t *testing.T) {
+func TestDecodeQueryImploded(t *testing.T) {
 	t.Parallel()
 
 	err := quick.Check(func(v []string) bool {
@@ -141,7 +141,7 @@ func TestDecodeQuerySliceImploded(t *testing.T) {
 
 		queries := make(url.Values)
 		if len(v) > 0 {
-			queries.Set("value", strings.Join(v, QueryDelimiterComma))
+			queries.Set("value", strings.Join(v, queryDelimiterComma))
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
@@ -196,12 +196,12 @@ func TestDecodeQuerySliceSpace(t *testing.T) {
 
 		// remove all delimiters
 		for i := range v {
-			v[i] = strings.ReplaceAll(v[i], QueryDelimiterSpace, "")
+			v[i] = strings.ReplaceAll(v[i], queryDelimiterSpace, "")
 		}
 
 		queries := make(url.Values)
 		if len(v) > 0 {
-			queries.Set("value", strings.Join(v, QueryDelimiterSpace))
+			queries.Set("value", strings.Join(v, queryDelimiterSpace))
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
@@ -227,12 +227,12 @@ func TestDecodeQuerySlicePipe(t *testing.T) {
 		}
 
 		for i := range v {
-			v[i] = strings.ReplaceAll(v[i], QueryDelimiterPipe, "")
+			v[i] = strings.ReplaceAll(v[i], queryDelimiterPipe, "")
 		}
 
 		queries := make(url.Values)
 		if len(v) > 0 {
-			queries.Set("value", strings.Join(v, QueryDelimiterPipe))
+			queries.Set("value", strings.Join(v, queryDelimiterPipe))
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
@@ -481,18 +481,15 @@ func TestDecoder_DecodePath(t *testing.T) {
 	t.Parallel()
 
 	dec := NewDecoder()
-	// assume we return path parameter from path like /clients/{id}
-	dec.Path.Get = func(r *http.Request, name string) string {
-		v := strings.Split(r.URL.Path, "/")
-		return v[len(v)-1]
-	}
 
 	err := quick.Check(func(id int) bool {
 		var req struct {
 			ClientID int `path:"id"`
 		}
 
-		r := httptest.NewRequest(http.MethodGet, "/clients/"+strconv.Itoa(id), nil)
+		// Path has no impact on the test. Set path value manually.
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.SetPathValue("id", strconv.Itoa(id))
 
 		if err := dec.Decode(r, &req); err != nil {
 			t.Log(err)

@@ -1,11 +1,11 @@
-// Package request implements simple decoding of http request - url path, queries, headers and body - into golang struct
-// for easier consumption, resulting in less code boilerplate.
+// Package request simplifies decoding of the HTTP request (REST API) - url path, queries,
+// headers and body - into a Go struct for easier consumption.
 //
-// Implementation is based on OpenAPI 3 specification https://swagger.io/docs/specification/about/.
+// Implementation is based on [OpenAPI 3.1] specification .
 //
-//	func (r *http.Request, w *http.Response) {
+//	func handler(r *http.Request, w *http.Response) {
 //		var req struct {
-//			// path - requires Decoder.Path.Get to get value of path parameter
+//			// path params
 //			Id `path:"id"`
 //
 //			// query params
@@ -21,6 +21,8 @@
 //			// ...
 //		}
 //	}
+//
+// [OpenAPI 3.1]: https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md
 package request
 
 import (
@@ -35,58 +37,100 @@ import (
 	"strings"
 )
 
-// List of supported delimiters.
 const (
-	QueryDelimiterPipe  = "|"
-	QueryDelimiterSpace = " "
-	QueryDelimiterComma = ","
+	queryDelimiterPipe  = "|"
+	queryDelimiterSpace = " "
+	queryDelimiterComma = ","
 )
 
 // List of supported serialization styles.
 const (
-	QueryStyleForm  = "form"  // ?id=3,4,5
-	QueryStyleSpace = "space" // ?id=3%204%205
-	QueryStylePipe  = "pipe"  // ?id=3|4|5
-	QueryStyleDeep  = "deep"  // ?id[role]=admin&id[firstName]=Alex
+	QueryStyleForm  = "form"  // imploded "?id=3,4,5" or exploded "?id=3&id=4&id=5"
+	QueryStyleSpace = "space" // imploded "?id=3%204%205" or exploded "?id=3&id=4&id=5"
+	QueryStylePipe  = "pipe"  // imploded "?id=3|4|5" or exploded "?id=3&id=4&=5"
+	QueryStyleDeep  = "deep"  // exploded "?id[role]=admin&id[firstName]=Alex"
 )
 
-type PathConf struct {
-	// Get returns value of path parameter.
-	//
-	//	// chi
-	//	PathConf{
-	//		Get: chi.URLParam
-	//	}
-	Get func(r *http.Request, name string) string
-}
-
-type QueryConf struct {
+type queryConf struct {
 	// one of QueryStyleForm, QueryStyleSpace, QueryStylePipe or QueryStyleDeep
-	Style string
-	// one of QueryDelimiterPipe, QueryDelimiterSpace, QueryDelimiterComma
-	Delimiter string
+	style string
 	// true - "?id=1&id=2&id=3", false - "?id=1,2,3"
-	Exploded bool
+	exploded bool
 }
 
 type Decoder struct {
-	Path  PathConf
-	Query QueryConf
+	pathValue func(r *http.Request, name string) string
+	query     queryConf
 }
 
-func NewDecoder() Decoder {
-	return Decoder{
-		Query: QueryConf{
-			Exploded:  true,
-			Style:     QueryStyleForm,
-			Delimiter: QueryDelimiterComma,
+type Opt interface {
+	apply(d *Decoder)
+}
+
+type decoderOpt struct {
+	f func(d *Decoder)
+}
+
+func (o decoderOpt) apply(d *Decoder) {
+	o.f(d)
+}
+
+func newOpt(f func(d *Decoder)) Opt { //nolint:ireturn
+	return decoderOpt{f: f}
+}
+
+// PathValue sets a path parameter getter in [request.NewDecoder].
+func PathValue(pathValue func(r *http.Request, name string) string) Opt { //nolint:ireturn
+	return newOpt(func(d *Decoder) {
+		d.pathValue = pathValue
+	})
+}
+
+// QueryStyle lets you set query parameter style:
+//   - [request.QueryStyleForm]
+//   - [request.QueryStyleSpace]
+//   - [request.QueryStylePipe]
+//   - [request.QueryStyleDeep]
+func QueryStyle(style string) Opt { //nolint:ireturn
+	return newOpt(func(d *Decoder) {
+		d.query.style = style
+	})
+}
+
+// QueryExploded sets each value in a separate query parameter (e.g "?id=1&id=2").
+func QueryExploded() Opt { //nolint:ireturn
+	return newOpt(func(d *Decoder) {
+		d.query.exploded = true
+	})
+}
+
+// QueryImploded sets all values in a single query parameter and all values are
+// separated by a delimiter (e.g "?id=1,2").
+func QueryImploded() Opt { //nolint:ireturn
+	return newOpt(func(d *Decoder) {
+		d.query.exploded = false
+	})
+}
+
+func NewDecoder(opts ...Opt) Decoder {
+	decoder := Decoder{
+		pathValue: func(r *http.Request, name string) string { return r.PathValue(name) },
+		query: queryConf{
+			exploded: true,
+			style:    QueryStyleForm,
 		},
 	}
+
+	for _, opt := range opts {
+		opt.apply(&decoder)
+	}
+
+	return decoder
 }
 
 var defaultDecoder = NewDecoder()
 
-// Decode decodes http request into golang struct using defaults of OpenAPI 3 specification.
+// Decode decodes an HTTP request into a Go struct according to OpenAPI 3 specification.
 func Decode(r *http.Request, i interface{}) error {
 	return defaultDecoder.Decode(r, i)
 }
@@ -199,18 +243,14 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 
 		tagValue, ok = field.Type.Tag.Lookup("path")
 		if ok {
-			if d.Path.Get == nil {
-				continue
-			}
-
-			err := setValue(field.Value, []string{d.Path.Get(r, tagValue)})
+			err := setValue(field.Value, []string{d.pathValue(r, tagValue)})
 			if err != nil {
 				return fmt.Errorf("path '%s': %w", tagValue, err)
 			}
 		}
 
 		// query params
-		err := decodeQuery(d.Query, field.Value, field.Type, query)
+		err := decodeQuery(d.query, field.Value, field.Type, query)
 		if err != nil {
 			return err
 		}
@@ -280,21 +320,21 @@ type fieldConf struct {
 	required bool
 }
 
-func parseFieldTag(queryConf QueryConf, tag string) fieldConf {
+func parseFieldTag(queryConf queryConf, tag string) fieldConf {
 	tag = strings.TrimSpace(tag)
 	parts := strings.Split(tag, ",")
 
 	if len(parts) <= 1 {
 		return fieldConf{
-			exploded: queryConf.Exploded,
-			style:    queryConf.Style,
+			exploded: queryConf.exploded,
+			style:    queryConf.style,
 			name:     tag,
 		}
 	}
 
 	conf := fieldConf{
-		exploded: queryConf.Exploded,
-		style:    queryConf.Style,
+		exploded: queryConf.exploded,
+		style:    queryConf.style,
 		name:     strings.TrimSpace(parts[0]),
 	}
 
@@ -355,13 +395,13 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 	// picking up the last value conforms more likely with developer expectations.
 	first := values[0]
 
-	delimiter := QueryDelimiterComma
+	delimiter := queryDelimiterComma
 
 	switch conf.style {
 	case QueryStyleSpace:
-		delimiter = QueryDelimiterSpace
+		delimiter = queryDelimiterSpace
 	case QueryStylePipe:
-		delimiter = QueryDelimiterPipe
+		delimiter = queryDelimiterPipe
 	}
 
 	return strings.Split(first, delimiter), true
@@ -402,7 +442,7 @@ func decodeHeaders() error {
 	return errors.New("unmarshaling header is not implemented")
 }
 
-func decodeQuery(queryConf QueryConf, fv reflect.Value, ft reflect.StructField, query map[string][]string) error {
+func decodeQuery(queryConf queryConf, fv reflect.Value, ft reflect.StructField, query map[string][]string) error {
 	conf := parseFieldTag(queryConf, ft.Tag.Get("query"))
 
 	if conf.name == "" {
@@ -536,7 +576,7 @@ func setValue(rv reflect.Value, values []string) error {
 	return nil
 }
 
-func setDeepValue(queryConf QueryConf, rv reflect.Value, values map[string][]string) error {
+func setDeepValue(queryConf queryConf, rv reflect.Value, values map[string][]string) error {
 	rt := rv.Type()
 
 	for rv.Kind() == reflect.Ptr {

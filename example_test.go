@@ -42,9 +42,8 @@ func ExampleDecoder_Decode() {
 		Ids []int
 	}
 
-	dec := request.NewDecoder()
 	// set query values imploded "?ids=1,2,3" by default
-	dec.Query.Exploded = false
+	dec := request.NewDecoder(request.QueryImploded())
 
 	_ = dec.Decode(r, &req)
 
