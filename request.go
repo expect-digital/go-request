@@ -373,9 +373,8 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 		return values, true
 	}
 
-	// imploded
-	// Use the last value. Ignore other values if present (explode) - "?v=1&v=2"
-	first := values[len(values)-1]
+	// Query is imploded. Always read the last value when expected imploded query, but received exploded - "?v=1&v=2".
+	last := values[len(values)-1]
 
 	delimiter := ","
 
@@ -386,7 +385,7 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 		delimiter = "|"
 	}
 
-	return strings.Split(first, delimiter), true
+	return strings.Split(last, delimiter), true
 }
 
 func decodeBody(r *http.Request, fieldTag string, i interface{}) error {
