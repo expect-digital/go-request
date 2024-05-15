@@ -43,35 +43,36 @@ func main() {
 package main
 
 import (
-  "net/http"
+	"log"
+	"net/http"
 
-  "github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5"
+	"go.expect.digital/request"
 )
 
 func main() {
-  decode := NewDecoder(
-    WithPathValue(
-      func (r *http.Request, name string) string {
-        return chi.URLParam(r, name)
-      },
-    ),
-  ).Decode
+	decode := request.NewDecoder(
+		request.PathValue(
+			func(r *http.Request, name string) string {
+				return chi.URLParam(r, name)
+			},
+		),
+	).Decode
 
-  r := chi.NewRouter()
-  r.Get("/{id}", func handler(r *http.Request, w http.Response) {
-    var req struct {
-      ID int `path:"id"`
-    }
+	r := chi.NewRouter()
 
-    if err := decode(r, &req); err != nil {
-      return
-    }
-  })
+	r.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			ID int `path:"id"`
+		}
 
-  http.ListenAndServe(":8080", r)
+		if err := decode(r, &req); err != nil {
+			return
+		}
+	})
+
+	log.Fatal(http.ListenAndServe("127.0.0.1:8080", r))
 }
-
-
 ```
 
 ### Gorilla
@@ -80,57 +81,72 @@ func main() {
 package main
 
 import (
-  "net/http"
+	"log"
+	"net/http"
 
-  "github.com/gorilla/mux"
+	"github.com/gorilla/mux"
+	"go.expect.digital/request"
 )
 
 func main() {
-  decode := NewDecoder(
-    WithPathValue(func (r *http.Request, name string) string {
-      return mux.Vars(r)[name]
-    })
-  ).Decode
+	decode := request.NewDecoder(
+		request.PathValue(func(r *http.Request, name string) string {
+			return mux.Vars(r)[name]
+		}),
+	).Decode
 
-  http.HandleFunc("/{id}", func (r *http.Request, w http.Response) {
-    var req struct {
-      ID int `path:"id"`
-    }
+	r := mux.NewRouter()
 
-    if err := decode(r, &req); err != nil {
-      return
-    }
-  })
+	r.Path("/{id}").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			ID int `path:"id"`
+		}
 
-  http.ListenAndServe(":8080", nil)
+		if err := decode(r, &req); err != nil {
+			return
+		}
+	})
+
+	log.Fatal(http.ListenAndServe("127.0.0.1:8080", r))
 }
 ```
 
 ### Gin
 
-```go
-import (
-  "net/http"
+We advise using Gin binding [implementation](https://gin-gonic.com/docs/examples/bind-uri/).
 
-  "github.com/gin-gonic/gin"
+Example of using the package in Gin:
+
+```go
+package main
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"go.expect.digital/request"
 )
 
 func main() {
-  r := gin.Default()
+	r := gin.Default()
 
-  r.GET("/:id", func (c *gin.Context) {
-    decoder := NewDecoder(
-      WithPathValue(func (r *http.Request, name string) string {
-        return c.Param(name)
-      })
-    )
+	r.GET("/:id", func(c *gin.Context) {
+		decode := request.NewDecoder(
+			request.PathValue(func(r *http.Request, name string) string {
+				return c.Param(name)
+			}),
+		).Decode
 
-    if err := decode(r, &req); err != nil {
-      return
-    }
-  })
+		var req struct {
+			ID int `path:"id"`
+		}
 
-  r.Run()
+		if err := decode(c.Request, &req); err != nil {
+			return
+		}
+	})
+
+	log.Fatal(r.Run())
 }
-
 ```

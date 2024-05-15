@@ -1,26 +1,12 @@
-// Package request simplifies decoding of the HTTP request (REST API) - url path, queries,
-// headers and body - into a Go struct for easier consumption.
+// Package request simplifies decoding of HTTP requests (REST APIs) into Go structs for easier consumption.
+// It implements decoding based on the [OpenAPI 3.1] specification.
 //
-// Implementation is based on [OpenAPI 3.1] specification .
-//
-//	func handler(r *http.Request, w *http.Response) {
-//		var req struct {
-//			// path params
-//			Id `path:"id"`
-//
-//			// query params
-//			ExplodedIds []int `query:"id"`           // ?id=1&id=2&id=3
-//			ImplodedIds []int `query:"ids,imploded"` // ?ids=1,2,3
-//			Search string                            // ?search=foobar
-//
-//			// body
-//			Client model.Client `body:"json"`
-//		}
-//
-//		if err := request.Decode(r, &req); err != nil {
-//			// ...
-//		}
-//	}
+// Key Features:
+//   - Decodes path parameters, query parameters, request headers (not yet implemented), and request body.
+//   - Supports different query parameter styles: form (imploded/exploded), space-delimited, pipe-delimited,
+//     and deep (nested objects).
+//   - Allows customization of field names, required parameters, and decoding behavior through struct tags.
+//   - Handles different body content types (JSON, XML) based on the Accept header or a specified field tag.
 //
 // [OpenAPI 3.1]: https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md
 package request
@@ -97,7 +83,7 @@ func QueryStyle(style string) Opt { //nolint:ireturn
 	})
 }
 
-// QueryExploded sets each value in a separate query parameter (e.g "?id=1&id=2").
+// QueryExploded sets each value in a separate query parameter (e.g "?id=1&id=2"). The query delimiter is ignored.
 func QueryExploded() Opt { //nolint:ireturn
 	return newOpt(func(d *Decoder) {
 		d.query.exploded = true
@@ -135,9 +121,9 @@ func Decode(r *http.Request, i interface{}) error {
 	return defaultDecoder.Decode(r, i)
 }
 
-// Decode decodes http request into golang struct.
+// Decode decodes an HTTP request into Go struct.
 //
-// Decoding of query params follows specification of https://swagger.io/docs/specification/serialization/#query.
+// Decoding of query params follows [Query Serialization] spec.
 //
 //	// required - decoding returns error if query param is not present
 //	var req struct {
@@ -180,20 +166,22 @@ func Decode(r *http.Request, i interface{}) error {
 //		Id int
 //	}
 //
-//	// If no field tag value specified, "accept" request header is used to determine decoding. Uses json by default.
+//	// If no field tag value specified, "Accept" request header is used to determine decoding. Uses json by default.
 //	var req struct {
 //		Entity `body:""`
 //	}
 //
-//	// Always use json umarshalling, ignore "accept" request header:
+//	// Always use JSON umarshalling, ignore "Accept" request header:
 //	var req struct {
 //		Entity `body:"json"`
 //	}
 //
-//	// Always use xml unmarshalling, ignore "accept" request header:
+//	// Always use XML unmarshalling, ignore "Accept" request header:
 //	var req struct {
 //		Entity `body:"xml"`
 //	}
+//
+// [Query Serialization]: https://swagger.io/docs/specification/serialization/#query
 func (d Decoder) Decode(r *http.Request, i interface{}) error {
 	v := reflect.ValueOf(i)
 	if v.Kind() != reflect.Ptr {
