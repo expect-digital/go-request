@@ -374,10 +374,8 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 	}
 
 	// imploded - take first value, ignore remaining
-	//
-	// TODO(jhorsts): OpenAPI does not specify what should happen in given instance. However,
 	// picking up the last value conforms more likely with developer expectations.
-	first := values[len(values)-1]
+	first := values[0]
 
 	delimiter := ","
 
