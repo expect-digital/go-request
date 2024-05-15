@@ -308,7 +308,7 @@ type fieldConf struct {
 	required bool
 }
 
-func parseFieldTag(queryConf queryConf, tag string) fieldConf {
+func parseFieldTag(queryConf queryConf, tag string) (fieldConf, error) {
 	tag = strings.TrimSpace(tag)
 	parts := strings.Split(tag, ",")
 
@@ -317,7 +317,7 @@ func parseFieldTag(queryConf queryConf, tag string) fieldConf {
 			exploded: queryConf.exploded,
 			style:    queryConf.style,
 			name:     tag,
-		}
+		}, nil
 	}
 
 	conf := fieldConf{
@@ -328,6 +328,8 @@ func parseFieldTag(queryConf queryConf, tag string) fieldConf {
 
 	for _, part := range parts[1:] {
 		switch v := strings.TrimSpace(part); v {
+		default:
+			return fieldConf{}, fmt.Errorf("invalid part '%s' in field tag '%s'", part, tag)
 		case "required":
 			conf.required = true
 		case "exploded":
@@ -343,7 +345,7 @@ func parseFieldTag(queryConf queryConf, tag string) fieldConf {
 		}
 	}
 
-	return conf
+	return conf, nil
 }
 
 func parseQueryValuesDeep(name string, query map[string][]string) map[string][]string {
@@ -431,7 +433,10 @@ func decodeHeaders() error {
 }
 
 func decodeQuery(queryConf queryConf, fv reflect.Value, ft reflect.StructField, query map[string][]string) error {
-	conf := parseFieldTag(queryConf, ft.Tag.Get("query"))
+	conf, err := parseFieldTag(queryConf, ft.Tag.Get("query"))
+	if err != nil {
+		return fmt.Errorf("parse field %s tag: %w", ft.Name, err)
+	}
 
 	if conf.name == "" {
 		// use lowercased field name
