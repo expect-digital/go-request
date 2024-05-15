@@ -131,7 +131,7 @@ func TestDecodeQueryImploded(t *testing.T) {
 
 	err := quick.Check(func(v []string) bool {
 		var req struct {
-			Value []string `query:"value,imploded"`
+			Value []string `query:"value,implode"`
 		}
 
 		// remove all commas
@@ -141,7 +141,7 @@ func TestDecodeQueryImploded(t *testing.T) {
 
 		queries := make(url.Values)
 		if len(v) > 0 {
-			queries.Set("value", strings.Join(v, queryDelimiterComma))
+			queries.Set("value", strings.Join(v, ","))
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
@@ -164,7 +164,7 @@ func TestDecodeQueryExploded(t *testing.T) {
 	err := quick.Check(func(v []string) bool {
 		var req struct {
 			Default []string `query:"value"`
-			Value   []string `query:"value,exploded"`
+			Value   []string `query:"value,explode"`
 		}
 
 		queries := make(url.Values)
@@ -205,17 +205,17 @@ func TestDecodeQuerySliceSpace(t *testing.T) {
 
 	err := quick.Check(func(v []string) bool {
 		var req struct {
-			Value []string `query:"value,space"`
+			Value []string `query:"value,spaceDelimited"`
 		}
 
 		// remove all delimiters
 		for i := range v {
-			v[i] = strings.ReplaceAll(v[i], queryDelimiterSpace, "")
+			v[i] = strings.ReplaceAll(v[i], " ", "")
 		}
 
 		queries := make(url.Values)
 		if len(v) > 0 {
-			queries.Set("value", strings.Join(v, queryDelimiterSpace))
+			queries.Set("value", strings.Join(v, " "))
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
@@ -237,16 +237,16 @@ func TestDecodeQuerySlicePipe(t *testing.T) {
 
 	err := quick.Check(func(v []string) bool {
 		var req struct {
-			Value []string `query:"value,pipe"`
+			Value []string `query:"value,pipeDelimited"`
 		}
 
 		for i := range v {
-			v[i] = strings.ReplaceAll(v[i], queryDelimiterPipe, "")
+			v[i] = strings.ReplaceAll(v[i], "|", "")
 		}
 
 		queries := make(url.Values)
 		if len(v) > 0 {
-			queries.Set("value", strings.Join(v, queryDelimiterPipe))
+			queries.Set("value", strings.Join(v, "|"))
 		}
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
@@ -398,7 +398,7 @@ func TestDecodeQueryDeep(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?"+query.Encode(), nil)
 
 		var req struct {
-			Filter `query:",deep"`
+			Filter `query:",deepObject"`
 		}
 
 		if err := Decode(r, &req); err != nil {
