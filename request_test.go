@@ -193,9 +193,7 @@ func TestDecodeInvalidTag(t *testing.T) {
 		Value []string `query:"value,expanded"`
 	}
 
-	queries := make(url.Values)
-
-	r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	if err := Decode(r, &req); err == nil {
 		t.Error("want error, got no error")
