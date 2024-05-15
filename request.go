@@ -430,30 +430,18 @@ func decodeQuery(queryConf queryConf, fv reflect.Value, ft reflect.StructField, 
 		return fmt.Errorf("parse field %s tag: %w", ft.Name, err)
 	}
 
+	// ignore
+	if conf.name == "-" {
+		return nil
+	}
+
 	if conf.name == "" {
 		// use lowercased field name
 		conf.name = strings.ToLower(ft.Name)
 	}
 
-	switch {
-	default:
-		qv, ok := parseQueryValues(conf, query)
-		if !ok {
-			if conf.required {
-				return fmt.Errorf("query param '%s' is required", conf.name)
-			}
-
-			if len(qv) == 0 {
-				return nil
-			}
-		}
-
-		if err := setValue(fv, qv); err != nil {
-			return fmt.Errorf("query param '%s': %w", conf.name, err)
-		}
-	case conf.name == "-":
-		return nil
-	case conf.style == QueryStyleDeepObject:
+	// deep object
+	if conf.style == QueryStyleDeepObject {
 		qv := parseQueryValuesDeep(conf.name, query)
 		if conf.required && len(qv) == 0 {
 			return fmt.Errorf("query param '%s' is required", conf.name)
@@ -462,6 +450,24 @@ func decodeQuery(queryConf queryConf, fv reflect.Value, ft reflect.StructField, 
 		if err := setDeepValue(queryConf, fv, qv); err != nil {
 			return fmt.Errorf("query param '%s': %w", conf.name, err)
 		}
+
+		return nil
+	}
+
+	// normal query
+	qv, ok := parseQueryValues(conf, query)
+	if !ok {
+		if conf.required {
+			return fmt.Errorf("query param '%s' is required", conf.name)
+		}
+
+		if len(qv) == 0 {
+			return nil
+		}
+	}
+
+	if err := setValue(fv, qv); err != nil {
+		return fmt.Errorf("query param '%s': %w", conf.name, err)
 	}
 
 	return nil
