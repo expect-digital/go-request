@@ -553,6 +553,26 @@ func TestDecodeEmbeddedStructs(t *testing.T) {
 	}
 }
 
+func TestDecodeImplodeLastValue(t *testing.T) {
+	t.Parallel()
+
+	// read the last value when expected imploded query, but received exploded
+
+	var req struct {
+		Value string `query:"value,implode"`
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/?value=first&value=last", nil)
+
+	if err := Decode(r, &req); err != nil {
+		t.Error(err)
+	}
+
+	if req.Value != "last" {
+		t.Errorf(`want "last", got "%s"`, req.Value)
+	}
+}
+
 func BenchmarkDecode(b *testing.B) {
 	var err error
 
