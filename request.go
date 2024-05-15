@@ -373,9 +373,9 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 		return values, true
 	}
 
-	// imploded - take first value, ignore remaining
-	// picking up the last value conforms more likely with developer expectations.
-	first := values[0]
+	// imploded
+	// Use the last value. Ignore other values if present (explode) - "?v=1&v=2"
+	first := values[len(values)-1]
 
 	delimiter := ","
 
