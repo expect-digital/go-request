@@ -23,18 +23,12 @@ import (
 	"strings"
 )
 
-const (
-	queryDelimiterPipe  = "|"
-	queryDelimiterSpace = " "
-	queryDelimiterComma = ","
-)
-
 // List of supported serialization styles.
 const (
-	QueryStyleForm  = "form"  // imploded "?id=3,4,5" or exploded "?id=3&id=4&id=5"
-	QueryStyleSpace = "space" // imploded "?id=3%204%205" or exploded "?id=3&id=4&id=5"
-	QueryStylePipe  = "pipe"  // imploded "?id=3|4|5" or exploded "?id=3&id=4&=5"
-	QueryStyleDeep  = "deep"  // exploded "?id[role]=admin&id[firstName]=Alex"
+	QueryStyleForm           = "form"           // imploded "?id=3,4,5" or exploded "?id=3&id=4&id=5"
+	QueryStyleSpaceDelimited = "spaceDelimited" // imploded "?id=3%204%205" or exploded "?id=3&id=4&id=5"
+	QueryStylePipeDelimited  = "pipeDelimited"  // imploded "?id=3|4|5" or exploded "?id=3&id=4&=5"
+	QueryStyleDeepObject     = "deepObject"     // exploded "?id[role]=admin&id[firstName]=Alex"
 )
 
 type queryConf struct {
@@ -74,25 +68,25 @@ func PathValue(pathValue func(r *http.Request, name string) string) Opt { //noli
 
 // QueryStyle lets you set query parameter style:
 //   - [request.QueryStyleForm]
-//   - [request.QueryStyleSpace]
-//   - [request.QueryStylePipe]
-//   - [request.QueryStyleDeep]
+//   - [request.QueryStyleSpaceDelimited]
+//   - [request.QueryStylePipeDelimited]
+//   - [request.QueryStyleDeepObject]
 func QueryStyle(style string) Opt { //nolint:ireturn
 	return newOpt(func(d *Decoder) {
 		d.query.style = style
 	})
 }
 
-// QueryExploded sets each value in a separate query parameter (e.g "?id=1&id=2"). The query delimiter is ignored.
-func QueryExploded() Opt { //nolint:ireturn
+// QueryExplode sets each value in a separate query parameter (e.g "?id=1&id=2"). The query delimiter is ignored.
+func QueryExplode() Opt { //nolint:ireturn
 	return newOpt(func(d *Decoder) {
 		d.query.exploded = true
 	})
 }
 
-// QueryImploded sets all values in a single query parameter and all values are
+// QueryImplode sets all values in a single query parameter and all values are
 // separated by a delimiter (e.g "?id=1,2").
-func QueryImploded() Opt { //nolint:ireturn
+func QueryImplode() Opt { //nolint:ireturn
 	return newOpt(func(d *Decoder) {
 		d.query.exploded = false
 	})
@@ -254,7 +248,7 @@ type field struct {
 
 // flattenFields flattens all fields of struct, the following fields are not flattened:
 // - fields having "body" field tag;
-// - fields having "query" field tag with "deep" serialization;
+// - fields having "query" field tag with "deepObject" serialization;
 // - fields having encoding.TextUnmarshaler interface.
 func flattenFields(v reflect.Value) []field {
 	ft := v.Type()
@@ -278,7 +272,7 @@ func flattenFields(v reflect.Value) []field {
 		if sfv.Kind() == reflect.Struct {
 			deepQueryOrBody := func() bool {
 				for _, s := range strings.Split(sft.Tag.Get("query"), ",") {
-					if s == "deep" {
+					if s == QueryStyleDeepObject {
 						return true
 					}
 				}
@@ -332,15 +326,15 @@ func parseFieldTag(queryConf queryConf, tag string) (fieldConf, error) {
 			return fieldConf{}, fmt.Errorf("invalid part '%s' in field tag '%s'", part, tag)
 		case "required":
 			conf.required = true
-		case "exploded":
+		case "explode":
 			conf.exploded = true
-		case "imploded":
+		case "implode":
 			conf.exploded = false
-		case QueryStyleForm, QueryStylePipe, QueryStyleSpace:
+		case QueryStyleForm, QueryStylePipeDelimited, QueryStyleSpaceDelimited:
 			conf.style = v
 			// implicitly implode if style is specified
 			conf.exploded = false
-		case QueryStyleDeep:
+		case QueryStyleDeepObject:
 			conf.style = v
 		}
 	}
@@ -380,18 +374,16 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 	}
 
 	// imploded - take first value, ignore remaining
-	//
-	// TODO(jhorsts): OpenAPI does not specify what should happen in given instance. However,
 	// picking up the last value conforms more likely with developer expectations.
 	first := values[0]
 
-	delimiter := queryDelimiterComma
+	delimiter := ","
 
 	switch conf.style {
-	case QueryStyleSpace:
-		delimiter = queryDelimiterSpace
-	case QueryStylePipe:
-		delimiter = queryDelimiterPipe
+	case QueryStyleSpaceDelimited:
+		delimiter = " "
+	case QueryStylePipeDelimited:
+		delimiter = "|"
 	}
 
 	return strings.Split(first, delimiter), true
@@ -438,30 +430,18 @@ func decodeQuery(queryConf queryConf, fv reflect.Value, ft reflect.StructField, 
 		return fmt.Errorf("parse field %s tag: %w", ft.Name, err)
 	}
 
+	// ignore
+	if conf.name == "-" {
+		return nil
+	}
+
 	if conf.name == "" {
 		// use lowercased field name
 		conf.name = strings.ToLower(ft.Name)
 	}
 
-	switch {
-	default:
-		qv, ok := parseQueryValues(conf, query)
-		if !ok {
-			if conf.required {
-				return fmt.Errorf("query param '%s' is required", conf.name)
-			}
-
-			if len(qv) == 0 {
-				return nil
-			}
-		}
-
-		if err := setValue(fv, qv); err != nil {
-			return fmt.Errorf("query param '%s': %w", conf.name, err)
-		}
-	case conf.name == "-":
-		return nil
-	case conf.style == QueryStyleDeep:
+	// deep object
+	if conf.style == QueryStyleDeepObject {
 		qv := parseQueryValuesDeep(conf.name, query)
 		if conf.required && len(qv) == 0 {
 			return fmt.Errorf("query param '%s' is required", conf.name)
@@ -470,6 +450,24 @@ func decodeQuery(queryConf queryConf, fv reflect.Value, ft reflect.StructField, 
 		if err := setDeepValue(queryConf, fv, qv); err != nil {
 			return fmt.Errorf("query param '%s': %w", conf.name, err)
 		}
+
+		return nil
+	}
+
+	// normal query
+	qv, ok := parseQueryValues(conf, query)
+	if !ok {
+		if conf.required {
+			return fmt.Errorf("query param '%s' is required", conf.name)
+		}
+
+		if len(qv) == 0 {
+			return nil
+		}
+	}
+
+	if err := setValue(fv, qv); err != nil {
+		return fmt.Errorf("query param '%s': %w", conf.name, err)
 	}
 
 	return nil

@@ -18,8 +18,8 @@ func ExampleDecode() {
 
 	var req struct {
 		// query params
-		FilterType      []string `query:"filterType,imploded"`
-		FilterClientIDs []int    `query:"filterClientIds,pipe,imploded"`
+		FilterType      []string `query:"filterType,implode"`
+		FilterClientIDs []int    `query:"filterClientIds,pipeDelimited,implode"`
 		ClientID        int      `qyery:"clientId"`
 
 		// body
@@ -43,7 +43,7 @@ func ExampleDecoder_Decode() {
 	}
 
 	// set query values imploded "?ids=1,2,3" by default
-	dec := request.NewDecoder(request.QueryImploded())
+	dec := request.NewDecoder(request.QueryImplode())
 
 	_ = dec.Decode(r, &req)
 
