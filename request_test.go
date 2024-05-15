@@ -158,13 +158,13 @@ func TestDecodeQueryImploded(t *testing.T) {
 	}
 }
 
-func TestDecodeQuerySliceExpanded(t *testing.T) {
+func TestDecodeQueryExploded(t *testing.T) {
 	t.Parallel()
 
 	err := quick.Check(func(v []string) bool {
 		var req struct {
 			Default []string `query:"value"`
-			Value   []string `query:"value,expanded"`
+			Value   []string `query:"value,exploded"`
 		}
 
 		queries := make(url.Values)
@@ -183,6 +183,20 @@ func TestDecodeQuerySliceExpanded(t *testing.T) {
 	}, nil)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestDecodeInvalidTag(t *testing.T) {
+	t.Parallel()
+
+	var req struct {
+		Value []string `query:"value,expanded"`
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	if err := Decode(r, &req); err == nil {
+		t.Error("want error, got no error")
 	}
 }
 
