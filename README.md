@@ -1,17 +1,17 @@
 # request [![GoDoc](https://img.shields.io/badge/pkg.go.dev-doc-blue)](https://pkg.go.dev/go.expect.digital/request) ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/expect-digital/go-request/workflow.yml) ![GitHub](https://img.shields.io/github/license/expect-digital/go-request)
 
-Package request implements simple decoding of http request - queries, headers and body - into golang struct
+Package request implements simple decoding of the HTTP request - queries, headers, and body - into golang struct
 for easier consumption, resulting in less code boilerplate.
 
 godoc [go.expect.digital/request](https://pkg.go.dev/go.expect.digital/request)
 
 ## Reading path value
 
-By default, Decoder reads a path value using [Request.Pathvalue](https://pkg.go.dev/net/http#Request.PathValue).
+By default, the Decoder reads a path value using [request.PathValue](https://pkg.go.dev/net/http#Request.PathValue).
 
 Declare once and re-use in handlers.
 
-### http
+### net/http
 
 ```go
 package main
@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-  http.HandleFunc("/{id}", func (r *http.Request, w http.Response) {
+  http.HandleFunc("/{id}", func (w http.ResponseWriter, r *http.Request) {
     var req struct {
       ID int `path:"id"`
     }
@@ -113,7 +113,7 @@ func main() {
 
 ### Gin
 
-We advise using Gin binding [implementation](https://gin-gonic.com/docs/examples/bind-uri/).
+We advise using [Gin data binding](https://gin-gonic.com/docs/examples/bind-uri/) implementation.
 
 Example of using the package in Gin:
 
