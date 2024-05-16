@@ -1,12 +1,51 @@
-// Package request simplifies decoding of HTTP requests (REST APIs) into Go structs for easier consumption.
+// Package request simplifies decoding of HTTP requests (REST API) into Go structs for easier consumption.
 // It implements decoding based on the [OpenAPI 3.1] specification.
+//
+// In general, it is better to use code generation from the API specification,
+// e.g. OpenAPI spec to a server code in Golang. However, it's not always possible due to certain constraints.
 //
 // Key Features:
 //   - Decodes path parameters, query parameters, request headers (not yet implemented), and request body.
-//   - Supports different query parameter styles: form (imploded/exploded), space-delimited, pipe-delimited,
-//     and deep (nested objects).
+//   - Supports different query parameter styles: form, space-delimited, pipe-delimited,
+//     and deep (nested) objects.
 //   - Allows customization of field names, required parameters, and decoding behavior through struct tags.
 //   - Handles different body content types (JSON, XML) based on the Accept header or a specified field tag.
+//
+// When using Go standard packages, the code might look something like:
+//
+//	func handler(w http.ResponseWriter, r *http.Request) {
+//		var (
+//			err error
+//			req struct {
+//				ID     int     // path value
+//				Expand *string // query param
+//			}
+//		)
+//
+//		if req.ID, err = strconv.Atoi(r.PathValue("id")); err != nil {
+//			// handle error
+//			return
+//		}
+//
+//		if expand := r.URL.Query().Get("expand"); expand != "" {
+//			req.Expand = &expand
+//		}
+//	}
+//
+// The request package allows to bind data using field tags. Effectively,
+// reducing the boilerplate code significantly.
+//
+//	func handler(w http.ResponseWriter, r *http.Request) {
+//		var req struct {
+//			ID     int     `path:"id"`      // path value
+//			Expand *string `query:"expand"` // query param
+//		}
+//
+//		if err := Decode(r, &req); err != nil {
+//			// handle error
+//			return
+//		}
+//	}
 //
 // [OpenAPI 3.1]: https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md
 package request
@@ -38,11 +77,13 @@ type queryConf struct {
 	exploded bool
 }
 
+// Decoder decodes (binds) [net/http.Request] data into Go struct.
 type Decoder struct {
 	pathValue func(r *http.Request, name string) string
 	query     queryConf
 }
 
+// Opt allows to override default [request.Decoder] options.
 type Opt interface {
 	apply(d *Decoder)
 }
@@ -59,14 +100,14 @@ func newOpt(f func(d *Decoder)) Opt { //nolint:ireturn
 	return decoderOpt{f: f}
 }
 
-// PathValue sets a path parameter getter in [request.NewDecoder].
+// PathValue allows to override default path parameter getter in [request.NewDecoder].
 func PathValue(pathValue func(r *http.Request, name string) string) Opt { //nolint:ireturn
 	return newOpt(func(d *Decoder) {
 		d.pathValue = pathValue
 	})
 }
 
-// QueryStyle lets you set query parameter style:
+// QueryStyle allows to override default query parameter style:
 //   - [request.QueryStyleForm]
 //   - [request.QueryStyleSpaceDelimited]
 //   - [request.QueryStylePipeDelimited]
@@ -92,6 +133,14 @@ func QueryImplode() Opt { //nolint:ireturn
 	})
 }
 
+// NewDecoder returns a new decoder to decode [net/http.Request] data into Go struct.
+//
+// By default:
+//   - the decoder reads path value using
+//     https://pkg.go.dev/net/http#Request.PathValue. Override with [request.PathValue] option.
+//   - the decoder uses exploded query parameters. Override with [request.QueryImplode]
+//     or [request.QueryExplode] option.
+//   - the decoder uses [request.QueryStyleForm] query parameter style. Override with [request.QueryStyle] option.
 func NewDecoder(opts ...Opt) Decoder {
 	decoder := Decoder{
 		pathValue: func(r *http.Request, name string) string { return r.PathValue(name) },
@@ -117,7 +166,7 @@ func Decode(r *http.Request, i interface{}) error {
 
 // Decode decodes an HTTP request into Go struct.
 //
-// Decoding of query params follows [Query Serialization] spec.
+// Decoding of query params conforms to the [Query Serialization] spec.
 //
 //	// required - decoding returns error if query param is not present
 //	var req struct {
@@ -150,7 +199,7 @@ func Decode(r *http.Request, i interface{}) error {
 //		FilterClientIds []int `query:"id,form"` // implicitly imploded
 //	}
 //
-// Use encoding.TextUnmarshaler to implement custom decoding.
+// Use [encoding.TextUnmarshaler] to implement custom decoding.
 //
 // Decoding of request headers is NOT yet implemented.
 //
