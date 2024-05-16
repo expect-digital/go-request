@@ -1,9 +1,20 @@
 # request [![GoDoc](https://img.shields.io/badge/pkg.go.dev-doc-blue)](https://pkg.go.dev/go.expect.digital/request) ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/expect-digital/go-request/workflow.yml) ![GitHub](https://img.shields.io/github/license/expect-digital/go-request)
 
-Package request implements simple decoding of the HTTP request - queries, headers, and body - into golang struct
-for easier consumption, resulting in less code boilerplate.
-
 godoc [go.expect.digital/request](https://pkg.go.dev/go.expect.digital/request)
+
+Package request simplifies the decoding of HTTP requests (REST API) into Go structs for easier consumption.
+It implements decoding based on the [OpenAPI 3.1](https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md) specification.
+
+In general, it is better to use code generation from the API specification,
+e.g. OpenAPI spec to a server code in Golang. However, it's not always possible due to certain constraints.
+
+Key Features:
+
+- Decodes path parameters, query parameters, request headers (not yet implemented), and request body.
+- Supports different query parameter styles: form, space-delimited, pipe-delimited,
+  and deep (nested) objects.
+- Allows customization of field names, required parameters, and decoding behavior through struct tags.
+- Handles different body content types (JSON, XML) based on the Accept header or a specified field tag.
 
 ## Reading path value
 

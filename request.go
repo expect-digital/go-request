@@ -1,4 +1,4 @@
-// Package request simplifies decoding of HTTP requests (REST API) into Go structs for easier consumption.
+// Package request simplifies the decoding of HTTP requests (REST API) into Go structs for easier consumption.
 // It implements decoding based on the [OpenAPI 3.1] specification.
 //
 // In general, it is better to use code generation from the API specification,
