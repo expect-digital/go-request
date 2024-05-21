@@ -36,7 +36,7 @@ import (
 func main() {
   http.HandleFunc("/{id}", func (w http.ResponseWriter, r *http.Request) {
     var req struct {
-      ID int `path:"id"`
+      ID int `oas:"id,path"`
     }
 
     if err := request.Decode(r, &req); err != nil {
@@ -74,7 +74,7 @@ func main() {
 
 	r.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			ID int `path:"id"`
+			ID int `oas:"id,path"`
 		}
 
 		if err := decode(r, &req); err != nil {
@@ -110,7 +110,7 @@ func main() {
 
 	r.Path("/{id}").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			ID int `path:"id"`
+			ID int `oas:"id,path"`
 		}
 
 		if err := decode(r, &req); err != nil {
@@ -150,7 +150,7 @@ func main() {
 		).Decode
 
 		var req struct {
-			ID int `path:"id"`
+			ID int `oas:"id,path"`
 		}
 
 		if err := decode(c.Request, &req); err != nil {

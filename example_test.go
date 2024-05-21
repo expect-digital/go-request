@@ -18,14 +18,14 @@ func ExampleDecode() {
 
 	var req struct {
 		// query params
-		FilterType      []string `query:"filterType,implode"`
-		FilterClientIDs []int    `query:"filterClientIds,pipeDelimited,implode"`
-		ClientID        int      `qyery:"clientId"`
+		FilterType      []string `oas:"filterType,query,implode"`
+		FilterClientIDs []int    `oas:"filterClientIds,query,pipeDelimited,implode"`
+		ClientID        int      `oas:"clientId,query"`
 
 		// body
 		Client struct {
 			ID int `json:"id"`
-		} `body:"json"`
+		} `oas:",body,json"`
 	}
 
 	_ = request.Decode(r, &req)
