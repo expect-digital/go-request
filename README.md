@@ -62,13 +62,7 @@ import (
 )
 
 func main() {
-	decode := request.NewDecoder(
-		request.PathValue(
-			func(r *http.Request, name string) string {
-				return chi.URLParam(r, name)
-			},
-		),
-	).Decode
+	decode := request.NewDecoder(request.PathValue(chi.URLParam)).Decode
 
 	r := chi.NewRouter()
 
