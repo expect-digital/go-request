@@ -17,7 +17,7 @@ func testQuery[T comparable](t *testing.T) {
 
 	err := quick.Check(func(v T) bool {
 		var req struct {
-			Value T `query:"value"`
+			Value T `oas:"value,query"`
 		}
 
 		queries := make(url.Values)
@@ -79,7 +79,7 @@ func TestDecodeQuerySlice(t *testing.T) {
 
 	err := quick.Check(func(v []string) bool {
 		var req struct {
-			Value []string `query:"value"`
+			Value []string `oas:"value,query"`
 		}
 
 		queries := make(url.Values)
@@ -106,7 +106,7 @@ func TestDecodeQueryByteSlice(t *testing.T) {
 
 	err := quick.Check(func(v string) bool {
 		var req struct {
-			Value []byte `query:"value"`
+			Value []byte `oas:"value,query"`
 		}
 
 		queries := make(url.Values)
@@ -131,7 +131,7 @@ func TestDecodeQueryImploded(t *testing.T) {
 
 	err := quick.Check(func(v []string) bool {
 		var req struct {
-			Value []string `query:"value,implode"`
+			Value []string `oas:"value,query,implode"`
 		}
 
 		// remove all commas
@@ -163,8 +163,8 @@ func TestDecodeQueryExploded(t *testing.T) {
 
 	err := quick.Check(func(v []string) bool {
 		var req struct {
-			Default []string `query:"value"`
-			Value   []string `query:"value,explode"`
+			Default []string `oas:"value,query"`
+			Value   []string `oas:"value,query,explode"`
 		}
 
 		queries := make(url.Values)
@@ -190,7 +190,7 @@ func TestDecodeInvalidTag(t *testing.T) {
 	t.Parallel()
 
 	var req struct {
-		Value []string `query:"value,expanded"`
+		Value []string `oas:"value,query,expanded"`
 	}
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -205,7 +205,7 @@ func TestDecodeQuerySliceSpace(t *testing.T) {
 
 	err := quick.Check(func(v []string) bool {
 		var req struct {
-			Value []string `query:"value,spaceDelimited"`
+			Value []string `oas:"value,query,spaceDelimited"`
 		}
 
 		// remove all delimiters
@@ -237,7 +237,7 @@ func TestDecodeQuerySlicePipe(t *testing.T) {
 
 	err := quick.Check(func(v []string) bool {
 		var req struct {
-			Value []string `query:"value,pipeDelimited"`
+			Value []string `oas:"value,query,pipeDelimited"`
 		}
 
 		for i := range v {
@@ -286,7 +286,7 @@ func TestDecodeQueryOptional(t *testing.T) {
 	t.Parallel()
 
 	var req struct {
-		Field bool `query:"field"`
+		Field bool `oas:"field,query"`
 	}
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -304,7 +304,7 @@ func TestDecodeQueryRequired(t *testing.T) {
 	t.Parallel()
 
 	var req struct {
-		Field bool `query:"field,required"`
+		Field bool `oas:"field,query,required"`
 	}
 
 	queries := make(url.Values)
@@ -322,7 +322,7 @@ func TestDecodeQueryFieldName(t *testing.T) {
 
 	type req struct {
 		FieldOne   string
-		FieldTwo   string `query:",required"`
+		FieldTwo   string `oas:",query,required"`
 		FieldThree []string
 	}
 
@@ -365,7 +365,7 @@ func TestDecodeQueryIgnore(t *testing.T) {
 	t.Parallel()
 
 	var req struct {
-		Field string `query:"-"`
+		Field string `oas:"-"`
 	}
 
 	queries := make(url.Values)
@@ -386,19 +386,19 @@ func TestDecodeQueryDeep(t *testing.T) {
 	t.Parallel()
 
 	type Filter struct {
-		Search string `query:"find"`
+		Search string `oas:"search"`
 		Gt     byte
 	}
 
 	err := quick.Check(func(v Filter) bool {
 		query := make(url.Values)
-		query.Set("filter[find]", v.Search)
+		query.Set("filter[search]", v.Search)
 		query.Set("filter[gt]", strconv.Itoa(int(v.Gt)))
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+query.Encode(), nil)
 
 		var req struct {
-			Filter `query:",deepObject"`
+			Filter `oas:"filter,query,deepObject"`
 		}
 
 		if err := Decode(r, &req); err != nil {
@@ -456,8 +456,8 @@ func TestDecodeJSONBody(t *testing.T) {
 
 	var req struct {
 		Body struct {
-			ID int
-		} `body:"json"`
+			ID int `json:"id"`
+		} `oas:",body,json"`
 	}
 
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"id":9}`))
@@ -477,7 +477,7 @@ func TestDecodeXMLBody(t *testing.T) {
 	var req struct {
 		Body struct {
 			ID int `xml:"Id"`
-		} `body:"xml"`
+		} `oas:",body,xml"`
 	}
 
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`<Body><Id>1</Id></Body>`))
@@ -498,7 +498,7 @@ func TestDecoder_DecodePath(t *testing.T) {
 
 	err := quick.Check(func(id int) bool {
 		var req struct {
-			ClientID int `path:"id"`
+			ClientID int `oas:"id,path"`
 		}
 
 		// Path has no impact on the test. Set path value manually.
@@ -521,8 +521,8 @@ func TestDecodeEmbeddedStructs(t *testing.T) {
 	t.Parallel()
 
 	type Range struct {
-		Start int `query:"rangeStart"`
-		End   int `query:"rangeEnd"`
+		Start int `oas:"rangeStart,query"`
+		End   int `oas:"rangeEnd,query"`
 	}
 
 	err := quick.Check(func(rangeStart, rangeEnd int) bool {
@@ -559,7 +559,7 @@ func TestDecodeImplodeLastValue(t *testing.T) {
 	// read the last value when expected imploded query, but received exploded
 
 	var req struct {
-		Value string `query:"value,implode"`
+		Value string `oas:"value,query,implode"`
 	}
 
 	r := httptest.NewRequest(http.MethodGet, "/?value=first&value=last", nil)
@@ -577,8 +577,10 @@ func BenchmarkDecode(b *testing.B) {
 	var err error
 
 	var req struct {
-		Value []string `query:"value"`
-		OK    bool     `query:"deep[ok]"`
+		Value []string `oas:"value,query"`
+		Deep  struct {
+			OK bool `oas:"ok"`
+		} `oas:"deep,deepObject"`
 	}
 
 	r := httptest.NewRequest(http.MethodGet, "/?value=one,two,three&deep[ok]=1", nil)
