@@ -190,18 +190,18 @@ func Decode(r *http.Request, i interface{}) error {
 //
 //	// comma delimited - ?id=1,2,3
 //	var req struct {
-//		Id []int  `oas:",query,form"`      // implicitly imploded
-//		Ids []int `oas:"id,query,imploded` // form by default
+//		Id []int  `oas:",query,form"`     // implicitly implode
+//		Ids []int `oas:"id,query,implode` // form by default
 //	}
 //
 //	// pipe delimited - ?id=1|2|3
 //	var req struct {
-//		Id []int `oas:",query,pipe" // implicitly imploded
+//		Id []int `oas:",query,pipeDelimited" // implicitly implode
 //	}
 //
 //	// space delimited - ?id=1%202%203
 //	var req struct {
-//		Id []int `oas:",query,space"` // implicitly imploded
+//		Id []int `oas:",query,spaceDelimited"` // implicitly imploded
 //	}
 //
 //	// set different name - ?id=1,2,3
