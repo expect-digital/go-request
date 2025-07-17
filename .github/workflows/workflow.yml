@@ -2,17 +2,18 @@ on: [pull_request]
 name: Check
 jobs:
   check:
-    runs-on: ${{ matrix.operating-system }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go: [1.23.x, 1.24.x, 1.25.0-rc.2]
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
       - name: Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.24.5
+          go-version: ${{ matrix.go }}
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
