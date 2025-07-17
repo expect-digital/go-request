@@ -39,7 +39,8 @@ func main() {
       ID int `oas:"id,path"`
     }
 
-    if err := request.Decode(r, &req); err != nil {
+		err := request.Decode(r, &req)
+    if err != nil {
       return
     }
   })
@@ -71,7 +72,8 @@ func main() {
 			ID int `oas:"id,path"`
 		}
 
-		if err := decode(r, &req); err != nil {
+		err := decode(r, &req)
+		if  err != nil {
 			return
 		}
 	})
@@ -107,7 +109,8 @@ func main() {
 			ID int `oas:"id,path"`
 		}
 
-		if err := decode(r, &req); err != nil {
+		err := decode(r, &req)
+		if  err != nil {
 			return
 		}
 	})
@@ -147,7 +150,8 @@ func main() {
 			ID int `oas:"id,path"`
 		}
 
-		if err := decode(c.Request, &req); err != nil {
+		err := decode(c.Request, &req)
+		if err != nil {
 			return
 		}
 	})
