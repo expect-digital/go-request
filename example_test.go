@@ -18,14 +18,14 @@ func ExampleDecode() {
 
 	var req struct {
 		// query params
-		FilterType      []string `query:"filterType,implode"`
-		FilterClientIDs []int    `query:"filterClientIds,pipeDelimited,implode"`
-		ClientID        int      `qyery:"clientId"`
+		FilterType      []string `oas:"filterType,query,implode"`
+		FilterClientIDs []int    `oas:"filterClientIds,query,pipeDelimited,implode"`
+		ClientID        int      `oas:"clientId,query"`
 
 		// body
 		Client struct {
 			ID int `json:"id"`
-		} `body:"json"`
+		} `oas:",body,json"`
 	}
 
 	_ = request.Decode(r, &req)
@@ -39,7 +39,7 @@ func ExampleDecoder_Decode() {
 	r := httptest.NewRequest(http.MethodPost, "/?ids=1,2,3", nil)
 
 	var req struct {
-		Ids []int
+		IDs []int
 	}
 
 	// set query values imploded "?ids=1,2,3" by default
@@ -49,5 +49,5 @@ func ExampleDecoder_Decode() {
 
 	fmt.Printf("%+v\n", req)
 	// Output:
-	// {Ids:[1 2 3]}
+	// {IDs:[1 2 3]}
 }

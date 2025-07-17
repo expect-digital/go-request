@@ -2,7 +2,6 @@
 // It implements decoding based on the [OpenAPI 3.1] specification.
 //
 // In general, it is better to use code generation from the API specification,
-// e.g. OpenAPI spec to a server code in Golang. However, it's not always possible due to certain constraints.
 //
 // Key Features:
 //   - Decodes path parameters, query parameters, request headers (not yet implemented), and request body.
@@ -37,8 +36,8 @@
 //
 //	func handler(w http.ResponseWriter, r *http.Request) {
 //		var req struct {
-//			ID     int     `path:"id"`      // path value
-//			Expand *string `query:"expand"` // query param
+//			ID     int     `oas:"id,path"`      // path value
+//			Expand *string `oas:"expand,query"` // query param
 //		}
 //
 //		if err := Decode(r, &req); err != nil {
@@ -58,8 +57,18 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
+)
+
+const fieldTagName = "oas"
+
+const (
+	originQuery  = "query"
+	originBody   = "body"
+	originPath   = "path"
+	originHeader = "header"
 )
 
 // List of supported serialization styles.
@@ -70,6 +79,7 @@ const (
 	QueryStyleDeepObject     = "deepObject"     // exploded "?id[role]=admin&id[firstName]=Alex"
 )
 
+// queryConf contains default configuration for Decoder.
 type queryConf struct {
 	// one of QueryStyleForm, QueryStyleSpace, QueryStylePipe or QueryStyleDeep
 	style string
@@ -170,33 +180,33 @@ func Decode(r *http.Request, i interface{}) error {
 //
 //	// required - decoding returns error if query param is not present
 //	var req struct {
-//		Name string `query:",required"`
+//		Name string `oas:",query,required"`
 //	}
 //
 //	// default - ?id=1&id=2&id=3
 //	var req struct {
-//		Id []int // case insensitive match of field name and query parameter
+//		ID []int // case insensitive match of field name and query parameter
 //	}
 //
 //	// comma delimited - ?id=1,2,3
 //	var req struct {
-//		Id []int  `query:",form"`      // implicitly imploded
-//		Ids []int `query:"id,imploded` // form by default
+//		ID []int  `oas:",query,form"`     // implicitly implode
+//		IDs []int `oas:"id,query,implode` // form by default
 //	}
 //
 //	// pipe delimited - ?id=1|2|3
 //	var req struct {
-//		Id []int `query:",pipe" // implicitly imploded
+//		ID []int `oas:",query,pipeDelimited" // implicitly implode
 //	}
 //
 //	// space delimited - ?id=1%202%203
 //	var req struct {
-//		Id []int `query:",space"` // implicitly imploded
+//		ID []int `oas:",query,spaceDelimited"` // implicitly imploded
 //	}
 //
 //	// set different name - ?id=1,2,3
 //	var req struct {
-//		FilterClientIds []int `query:"id,form"` // implicitly imploded
+//		FilterClientIDs []int `oas:"id,query,form"` // implicitly imploded
 //	}
 //
 // Use [encoding.TextUnmarshaler] to implement custom decoding.
@@ -206,22 +216,22 @@ func Decode(r *http.Request, i interface{}) error {
 // Decoding of request body is simple - it uses either json or xml unmarshaller:
 //
 //	type Entity struct {
-//		Id int
+//		ID int
 //	}
 //
 //	// If no field tag value specified, "Accept" request header is used to determine decoding. Uses json by default.
 //	var req struct {
-//		Entity `body:""`
+//		Entity `oas:",body"`
 //	}
 //
 //	// Always use JSON umarshalling, ignore "Accept" request header:
 //	var req struct {
-//		Entity `body:"json"`
+//		Entity `oas:",body,json"`
 //	}
 //
 //	// Always use XML unmarshalling, ignore "Accept" request header:
 //	var req struct {
-//		Entity `body:"xml"`
+//		Entity `oas:",body,xml"`
 //	}
 //
 // [Query Serialization]: https://swagger.io/docs/specification/serialization/#query
@@ -237,6 +247,7 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 	}
 
 	// query values lookup by its original and lowercased name
+	// TODO(jhorsts): why lowercase? investigate and apply the correct solution
 	const doubleSize = 2
 	query := make(map[string][]string, doubleSize*len(r.URL.Query()))
 
@@ -252,52 +263,94 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 	}
 
 	for _, field := range flattenFields(v) {
-		tagValue, ok := field.Type.Tag.Lookup("body")
-		if ok {
-			err := decodeBody(r, tagValue, field.Value.Addr().Interface())
-			if err != nil {
-				return err
-			}
+		origin, conf := parseFieldConf(field.Type)
 
+		// ignore
+		if conf.name == "-" {
 			continue
 		}
 
-		_, ok = field.Type.Tag.Lookup("header")
-		if ok {
+		switch origin {
+		case originQuery:
+			err := d.decodeQuery(field.Value, conf, query)
+			if err != nil {
+				return err
+			}
+		case originBody:
+			err := decodeBody(r, field.Value.Addr().Interface(), conf)
+			if err != nil {
+				return err
+			}
+		case originPath:
+			err := setValue(field.Value, []string{d.pathValue(r, conf.name)})
+			if err != nil {
+				return fmt.Errorf("path '%s': %w", conf, err)
+			}
+		case originHeader:
 			err := decodeHeaders()
 			if err != nil {
 				return err
 			}
-
-			continue
-		}
-
-		tagValue, ok = field.Type.Tag.Lookup("path")
-		if ok {
-			err := setValue(field.Value, []string{d.pathValue(r, tagValue)})
-			if err != nil {
-				return fmt.Errorf("path '%s': %w", tagValue, err)
-			}
-		}
-
-		// query params
-		err := decodeQuery(d.query, field.Value, field.Type, query)
-		if err != nil {
-			return err
 		}
 	}
 
 	return nil
 }
 
+// fieldConf contains extracted field tag values - <name>,<comma separated conf>.
+type fieldConf struct {
+	name string
+	conf []string
+}
+
+func parseFieldConf(sf reflect.StructField) (origin string, conf fieldConf) {
+	origin = "query"
+
+	tagValue, ok := sf.Tag.Lookup(fieldTagName)
+	if !ok {
+		conf.name = strings.ToLower(sf.Name)
+		return origin, conf
+	}
+
+	values := strings.Split(tagValue, ",")
+	conf.name, conf.conf = values[0], values[1:]
+
+	if conf.name == "" {
+		conf.name = strings.ToLower(sf.Name)
+	}
+
+	found := -1
+
+	for i, v := range conf.conf {
+		conf.conf[i] = strings.TrimSpace(v)
+
+		switch v {
+		case originBody, originHeader, originPath, originQuery:
+			origin = v
+			found = i
+		}
+	}
+
+	// remove origin from settings, order does not matter
+	if found >= 0 {
+		n := len(conf.conf) - 1
+		conf.conf[found] = conf.conf[n]
+		conf.conf = conf.conf[:n]
+	}
+
+	return origin, conf
+}
+
 type field struct {
-	Value reflect.Value
-	Type  reflect.StructField
+	origin string
+	conf   fieldConf
+	Value  reflect.Value
+	Type   reflect.StructField
 }
 
 // flattenFields flattens all fields of struct, the following fields are not flattened:
-// - fields having "body" field tag;
-// - fields having "query" field tag with "deepObject" serialization;
+// - field tags having origin "body";
+// - field tags having origin "query" with "deepObject" style;
 // - fields having encoding.TextUnmarshaler interface.
 func flattenFields(v reflect.Value) []field {
 	ft := v.Type()
@@ -305,74 +358,56 @@ func flattenFields(v reflect.Value) []field {
 	fields := make([]field, 0, ft.NumField())
 
 	for i := range ft.NumField() {
-		sfv := v.Field(i)
-		sft := ft.Field(i)
+		f := field{Type: ft.Field(i)}
 
 		// NOTE: ignore unexported fields in struct.
-		if !sft.IsExported() {
+		if !f.Type.IsExported() {
 			continue
 		}
 
-		if _, ok := sfv.Addr().Interface().(encoding.TextUnmarshaler); ok {
-			fields = append(fields, field{Value: sfv, Type: sft})
+		f.Value = v.Field(i)
+		f.origin, f.conf = parseFieldConf(f.Type)
+
+		if _, ok := f.Value.Addr().Interface().(encoding.TextUnmarshaler); ok {
+			fields = append(fields, f)
 			continue
 		}
 
-		if sfv.Kind() == reflect.Struct {
-			deepQueryOrBody := func() bool {
-				for _, s := range strings.Split(sft.Tag.Get("query"), ",") {
-					if s == QueryStyleDeepObject {
-						return true
-					}
-				}
+		if f.Value.Kind() == reflect.Struct &&
+			f.origin == originQuery && !slices.Contains(f.conf.conf, QueryStyleDeepObject) {
+			fields = append(fields, flattenFields(f.Value)...)
 
-				_, ok := sft.Tag.Lookup("body")
-
-				return ok
-			}()
-
-			if deepQueryOrBody {
-				fields = append(fields, field{Value: sfv, Type: sft})
-			} else {
-				fields = append(fields, flattenFields(sfv)...)
-			}
-		} else {
-			fields = append(fields, field{Value: sfv, Type: sft})
+			continue
 		}
+
+		fields = append(fields, f)
 	}
 
 	return fields
 }
 
-type fieldConf struct {
+type fieldQueryConf struct {
 	name     string // query name
 	style    string // serialization style
 	exploded bool   // whether exploded values
 	required bool
 }
 
-func parseFieldTag(queryConf queryConf, tag string) (fieldConf, error) {
-	tag = strings.TrimSpace(tag)
-	parts := strings.Split(tag, ",")
-
-	if len(parts) <= 1 {
-		return fieldConf{
-			exploded: queryConf.exploded,
-			style:    queryConf.style,
-			name:     tag,
-		}, nil
+func (d *Decoder) parseQueryFieldConf(tagConf fieldConf) (fieldQueryConf, error) {
+	conf := fieldQueryConf{
+		exploded: d.query.exploded,
+		style:    d.query.style,
+		name:     tagConf.name,
 	}
 
-	conf := fieldConf{
-		exploded: queryConf.exploded,
-		style:    queryConf.style,
-		name:     strings.TrimSpace(parts[0]),
+	if len(tagConf.conf) == 0 {
+		return conf, nil
 	}
 
-	for _, part := range parts[1:] {
-		switch v := strings.TrimSpace(part); v {
+	for _, setting := range tagConf.conf {
+		switch setting {
 		default:
-			return fieldConf{}, fmt.Errorf("invalid part '%s' in field tag '%s'", part, tag)
+			return fieldQueryConf{}, fmt.Errorf("invalid part '%s'", setting)
 		case "required":
 			conf.required = true
 		case "explode":
@@ -380,12 +415,16 @@ func parseFieldTag(queryConf queryConf, tag string) (fieldConf, error) {
 		case "implode":
 			conf.exploded = false
 		case QueryStyleForm, QueryStylePipeDelimited, QueryStyleSpaceDelimited:
-			conf.style = v
-			// implicitly implode if style is specified
-			conf.exploded = false
+			conf.style = setting
+			conf.exploded = false // TODO(jhorsts): should I remove it? OAS stipulates "explode" by default.
 		case QueryStyleDeepObject:
-			conf.style = v
+			conf.style = setting
 		}
+	}
+
+	// deepObject allows only exploded
+	if conf.style == QueryStyleDeepObject {
+		conf.exploded = true
 	}
 
 	return conf, nil
@@ -412,13 +451,13 @@ func parseQueryValuesDeep(name string, query map[string][]string) map[string][]s
 }
 
 // parseQueryValues parses query parameters as defined in field tag.
-func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool) {
-	values, ok := query[conf.name]
+func parseQueryValues(queryConf fieldQueryConf, query map[string][]string) ([]string, bool) {
+	values, ok := query[queryConf.name]
 	if !ok {
 		return nil, false
 	}
 
-	if conf.exploded || len(values) == 0 {
+	if queryConf.exploded || len(values) == 0 {
 		return values, true
 	}
 
@@ -427,7 +466,7 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 
 	delimiter := ","
 
-	switch conf.style {
+	switch queryConf.style {
 	case QueryStyleSpaceDelimited:
 		delimiter = " "
 	case QueryStylePipeDelimited:
@@ -437,20 +476,27 @@ func parseQueryValues(conf fieldConf, query map[string][]string) ([]string, bool
 	return strings.Split(last, delimiter), true
 }
 
-func decodeBody(r *http.Request, fieldTag string, i interface{}) error {
-	if fieldTag == "" {
+func decodeBody(r *http.Request, i interface{}, conf fieldConf) error {
+	var format string
+
+	switch {
+	default:
 		accept := strings.ToLower(r.Header.Get("Accept"))
 
 		if strings.HasPrefix(accept, "application/json") {
-			fieldTag = "json"
+			format = "json"
 		} else if strings.HasPrefix(accept, "application/xml") {
-			fieldTag = "xml"
+			format = "xml"
 		}
+	case slices.Contains(conf.conf, "json"):
+		format = "json"
+	case slices.Contains(conf.conf, "xml"):
+		format = "xml"
 	}
 
-	switch fieldTag {
+	switch format {
 	default:
-		return fmt.Errorf(`want "xml" or "json", got unsupported "%s"`, fieldTag)
+		return fmt.Errorf(`want "xml" or "json", got unsupported "%s"`, fieldTagName)
 	case "json":
 		err := json.NewDecoder(r.Body).Decode(i)
 		if err != nil {
@@ -472,41 +518,31 @@ func decodeHeaders() error {
 	return errors.New("unmarshaling header is not implemented")
 }
 
-func decodeQuery(queryConf queryConf, fv reflect.Value, ft reflect.StructField, query map[string][]string) error {
-	conf, err := parseFieldTag(queryConf, ft.Tag.Get("query"))
+func (d *Decoder) decodeQuery(fv reflect.Value, conf fieldConf, query map[string][]string) error {
+	queryConf, err := d.parseQueryFieldConf(conf)
 	if err != nil {
-		return fmt.Errorf("parse field %s tag: %w", ft.Name, err)
-	}
-
-	// ignore
-	if conf.name == "-" {
-		return nil
-	}
-
-	if conf.name == "" {
-		// use lowercased field name
-		conf.name = strings.ToLower(ft.Name)
+		return err
 	}
 
 	// deep object
-	if conf.style == QueryStyleDeepObject {
-		qv := parseQueryValuesDeep(conf.name, query)
-		if conf.required && len(qv) == 0 {
-			return fmt.Errorf("query param '%s' is required", conf.name)
+	if queryConf.style == QueryStyleDeepObject {
+		qv := parseQueryValuesDeep(queryConf.name, query)
+		if queryConf.required && len(qv) == 0 {
+			return fmt.Errorf("query param '%s' is required", queryConf.name)
 		}
 
-		if err := setDeepValue(queryConf, fv, qv); err != nil {
-			return fmt.Errorf("query param '%s': %w", conf.name, err)
+		if err := d.setDeepValue(fv, qv); err != nil {
+			return fmt.Errorf("query param '%s': %w", queryConf.name, err)
 		}
 
 		return nil
 	}
 
 	// normal query
-	qv, ok := parseQueryValues(conf, query)
+	qv, ok := parseQueryValues(queryConf, query)
 	if !ok {
-		if conf.required {
-			return fmt.Errorf("query param '%s' is required", conf.name)
+		if queryConf.required {
+			return fmt.Errorf("query param '%s' is required", queryConf.name)
 		}
 
 		if len(qv) == 0 {
@@ -515,7 +551,7 @@ func decodeQuery(queryConf queryConf, fv reflect.Value, ft reflect.StructField, 
 	}
 
 	if err := setValue(fv, qv); err != nil {
-		return fmt.Errorf("query param '%s': %w", conf.name, err)
+		return fmt.Errorf("query param '%s': %w", queryConf.name, err)
 	}
 
 	return nil
@@ -615,9 +651,7 @@ func setValue(rv reflect.Value, values []string) error {
 	return nil
 }
 
-func setDeepValue(queryConf queryConf, rv reflect.Value, values map[string][]string) error {
-	rt := rv.Type()
-
+func (d *Decoder) setDeepValue(rv reflect.Value, query map[string][]string) error {
 	for rv.Kind() == reflect.Ptr {
 		if rv.IsNil() {
 			rv.Set(reflect.New(rv.Type().Elem()))
@@ -626,16 +660,19 @@ func setDeepValue(queryConf queryConf, rv reflect.Value, values map[string][]str
 		rv = rv.Elem()
 	}
 
-	if rv.Kind() != reflect.Struct {
-		return errors.New("expected struct for deep style")
+	if kind := rv.Kind(); kind != reflect.Struct {
+		return fmt.Errorf("want struct for deepObject, got %s", kind)
 	}
 
 	for i := range rv.NumField() {
-		sfv := rv.Field(i)
-		sft := rt.Field(i)
+		origin, conf := parseFieldConf(rv.Type().Field(i))
 
-		err := decodeQuery(queryConf, sfv, sft, values)
-		if err != nil {
+		// ignore
+		if origin != originQuery && conf.name == "-" {
+			continue
+		}
+
+		if err := setValue(rv.Field(i), query[conf.name]); err != nil {
 			return err
 		}
 	}
