@@ -185,28 +185,28 @@ func Decode(r *http.Request, i interface{}) error {
 //
 //	// default - ?id=1&id=2&id=3
 //	var req struct {
-//		Id []int // case insensitive match of field name and query parameter
+//		ID []int // case insensitive match of field name and query parameter
 //	}
 //
 //	// comma delimited - ?id=1,2,3
 //	var req struct {
-//		Id []int  `oas:",query,form"`     // implicitly implode
-//		Ids []int `oas:"id,query,implode` // form by default
+//		ID []int  `oas:",query,form"`     // implicitly implode
+//		IDs []int `oas:"id,query,implode` // form by default
 //	}
 //
 //	// pipe delimited - ?id=1|2|3
 //	var req struct {
-//		Id []int `oas:",query,pipeDelimited" // implicitly implode
+//		ID []int `oas:",query,pipeDelimited" // implicitly implode
 //	}
 //
 //	// space delimited - ?id=1%202%203
 //	var req struct {
-//		Id []int `oas:",query,spaceDelimited"` // implicitly imploded
+//		ID []int `oas:",query,spaceDelimited"` // implicitly imploded
 //	}
 //
 //	// set different name - ?id=1,2,3
 //	var req struct {
-//		FilterClientIds []int `oas:"id,query,form"` // implicitly imploded
+//		FilterClientIDs []int `oas:"id,query,form"` // implicitly imploded
 //	}
 //
 // Use [encoding.TextUnmarshaler] to implement custom decoding.
@@ -216,7 +216,7 @@ func Decode(r *http.Request, i interface{}) error {
 // Decoding of request body is simple - it uses either json or xml unmarshaller:
 //
 //	type Entity struct {
-//		Id int
+//		ID int
 //	}
 //
 //	// If no field tag value specified, "Accept" request header is used to determine decoding. Uses json by default.
