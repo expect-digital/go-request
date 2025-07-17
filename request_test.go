@@ -25,7 +25,8 @@ func testQuery[T comparable](t *testing.T) {
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		if err := Decode(r, &req); err != nil {
+		err := Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 			return false
 		}
@@ -43,14 +44,18 @@ func TestDecodePointerToStruct(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	want := "call of Decode passes non-pointer as second argument"
-	if err := Decode(r, struct{}{}); err == nil || err.Error() != want {
+
+	err := Decode(r, struct{}{})
+	if err == nil || err.Error() != want {
 		t.Errorf(`want "%s", got "%s"`, want, err)
 	}
 
 	var i int
 
 	want = "call of Decode passes pointer to non-struct as second argument"
-	if err := Decode(r, &i); err == nil || err.Error() != want {
+
+	err = Decode(r, &i)
+	if err == nil || err.Error() != want {
 		t.Errorf(`want "%s", got "%s"`, want, err)
 	}
 }
@@ -89,7 +94,8 @@ func TestDecodeQuerySlice(t *testing.T) {
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		if err := Decode(r, &req); err != nil {
+		err := Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 			return false
 		}
@@ -114,7 +120,8 @@ func TestDecodeQueryByteSlice(t *testing.T) {
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		if err := Decode(r, &req); err != nil {
+		err := Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 			return false
 		}
@@ -146,7 +153,8 @@ func TestDecodeQueryImploded(t *testing.T) {
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		if err := Decode(r, &req); err != nil {
+		err := Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 			return false
 		}
@@ -174,7 +182,8 @@ func TestDecodeQueryExploded(t *testing.T) {
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		if err := Decode(r, &req); err != nil {
+		err := Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 			return false
 		}
@@ -195,7 +204,8 @@ func TestDecodeInvalidTag(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	if err := Decode(r, &req); err == nil {
+	err := Decode(r, &req)
+	if err == nil {
 		t.Error("want error, got no error")
 	}
 }
@@ -220,7 +230,8 @@ func TestDecodeQuerySliceSpace(t *testing.T) {
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		if err := Decode(r, &req); err != nil {
+		err := Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 			return false
 		}
@@ -251,7 +262,8 @@ func TestDecodeQuerySlicePipe(t *testing.T) {
 
 		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-		if err := Decode(r, &req); err != nil {
+		err := Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 			return false
 		}
@@ -272,7 +284,8 @@ func TestDecodeQuerySliceEmpty(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?fields=", nil)
 
-	if err := Decode(r, &req); err != nil {
+	err := Decode(r, &req)
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -291,7 +304,8 @@ func TestDecodeQueryOptional(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	if err := Decode(r, &req); err != nil {
+	err := Decode(r, &req)
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -312,7 +326,9 @@ func TestDecodeQueryRequired(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
 	want := "query param 'field' is required"
-	if err := Decode(r, &req); err == nil || err.Error() != want {
+
+	err := Decode(r, &req)
+	if err == nil || err.Error() != want {
 		t.Errorf(`want "%s", got "%s"`, want, err)
 	}
 }
@@ -342,7 +358,8 @@ func TestDecodeQueryFieldName(t *testing.T) {
 
 	var got req
 
-	if err := Decode(r, &got); err != nil {
+	err := Decode(r, &got)
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -373,7 +390,8 @@ func TestDecodeQueryIgnore(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
 
-	if err := Decode(r, &req); err != nil {
+	err := Decode(r, &req)
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -401,7 +419,8 @@ func TestDecodeQueryDeep(t *testing.T) {
 			Filter `oas:"filter,query,deepObject"`
 		}
 
-		if err := Decode(r, &req); err != nil {
+		err := Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 		}
 
@@ -438,15 +457,16 @@ func TestDecodeUnmarshalText(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?sort=name", nil)
 
-	if err := Decode(r, &req); err != nil {
+	err := Decode(r, &req)
+	if err != nil {
 		t.Error(err)
 	}
 
-	if req.Sort.Name != "name" {
-		t.Errorf(`want "name", got %s`, req.Sort.Name)
+	if req.Name != "name" {
+		t.Errorf(`want "name", got %s`, req.Name)
 	}
 
-	if !req.Sort.Asc {
+	if !req.Asc {
 		t.Error("want true, got false")
 	}
 }
@@ -462,7 +482,8 @@ func TestDecodeJSONBody(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"id":9}`))
 
-	if err := Decode(r, &req); err != nil {
+	err := Decode(r, &req)
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -482,7 +503,8 @@ func TestDecodeXMLBody(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`<Body><Id>1</Id></Body>`))
 
-	if err := Decode(r, &req); err != nil {
+	err := Decode(r, &req)
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -505,7 +527,8 @@ func TestDecoder_DecodePath(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r.SetPathValue("id", strconv.Itoa(id))
 
-		if err := dec.Decode(r, &req); err != nil {
+		err := dec.Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 			return false
 		}
@@ -538,15 +561,16 @@ func TestDecodeEmbeddedStructs(t *testing.T) {
 			Range
 		}
 
-		if err := Decode(r, &req); err != nil {
+		err := Decode(r, &req)
+		if err != nil {
 			t.Log(err)
 			return false
 		}
 
-		return rangeStart == req.Range.Start &&
-			rangeEnd == req.Range.End &&
-			req.Sort.Name == "name" &&
-			req.Sort.Asc
+		return rangeStart == req.Start &&
+			rangeEnd == req.End &&
+			req.Name == "name" &&
+			req.Asc
 	}, nil)
 	if err != nil {
 		t.Error(err)
@@ -564,7 +588,8 @@ func TestDecodeImplodeLastValue(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?value=first&value=last", nil)
 
-	if err := Decode(r, &req); err != nil {
+	err := Decode(r, &req)
+	if err != nil {
 		t.Error(err)
 	}
 

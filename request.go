@@ -40,7 +40,8 @@
 //			Expand *string `oas:"expand,query"` // query param
 //		}
 //
-//		if err := Decode(r, &req); err != nil {
+//		err := Decode(r, &req)
+//		if err != nil {
 //			// handle error
 //			return
 //		}
@@ -249,6 +250,7 @@ func (d Decoder) Decode(r *http.Request, i interface{}) error {
 	// query values lookup by its original and lowercased name
 	// TODO(jhorsts): why lowercase? investigate and apply the correct solution
 	const doubleSize = 2
+
 	query := make(map[string][]string, doubleSize*len(r.URL.Query()))
 
 	for qk, qv := range r.URL.Query() {
@@ -393,7 +395,7 @@ type fieldQueryConf struct {
 	required bool
 }
 
-func (d *Decoder) parseQueryFieldConf(tagConf fieldConf) (fieldQueryConf, error) {
+func (d Decoder) parseQueryFieldConf(tagConf fieldConf) (fieldQueryConf, error) {
 	conf := fieldQueryConf{
 		exploded: d.query.exploded,
 		style:    d.query.style,
@@ -518,7 +520,7 @@ func decodeHeaders() error {
 	return errors.New("unmarshaling header is not implemented")
 }
 
-func (d *Decoder) decodeQuery(fv reflect.Value, conf fieldConf, query map[string][]string) error {
+func (d Decoder) decodeQuery(fv reflect.Value, conf fieldConf, query map[string][]string) error {
 	queryConf, err := d.parseQueryFieldConf(conf)
 	if err != nil {
 		return err
@@ -531,7 +533,8 @@ func (d *Decoder) decodeQuery(fv reflect.Value, conf fieldConf, query map[string
 			return fmt.Errorf("query param '%s' is required", queryConf.name)
 		}
 
-		if err := d.setDeepValue(fv, qv); err != nil {
+		err = d.setDeepValue(fv, qv)
+		if err != nil {
 			return fmt.Errorf("query param '%s': %w", queryConf.name, err)
 		}
 
@@ -550,7 +553,8 @@ func (d *Decoder) decodeQuery(fv reflect.Value, conf fieldConf, query map[string
 		}
 	}
 
-	if err := setValue(fv, qv); err != nil {
+	err = setValue(fv, qv)
+	if err != nil {
 		return fmt.Errorf("query param '%s': %w", queryConf.name, err)
 	}
 
@@ -577,7 +581,8 @@ func setValue(rv reflect.Value, values []string) error {
 	value := values[0]
 
 	if e, ok := rv.Addr().Interface().(encoding.TextUnmarshaler); ok {
-		if err := e.UnmarshalText([]byte(value)); err != nil {
+		err := e.UnmarshalText([]byte(value))
+		if err != nil {
 			return fmt.Errorf("set values %v: %w", values, err)
 		}
 
@@ -637,7 +642,9 @@ func setValue(rv reflect.Value, values []string) error {
 		if len(values) > 0 {
 			for _, value := range values {
 				v := reflect.New(t.Elem()).Elem()
-				if err := setValue(v, []string{value}); err != nil {
+
+				err := setValue(v, []string{value})
+				if err != nil {
 					return err
 				}
 
@@ -651,7 +658,7 @@ func setValue(rv reflect.Value, values []string) error {
 	return nil
 }
 
-func (d *Decoder) setDeepValue(rv reflect.Value, query map[string][]string) error {
+func (d Decoder) setDeepValue(rv reflect.Value, query map[string][]string) error {
 	for rv.Kind() == reflect.Ptr {
 		if rv.IsNil() {
 			rv.Set(reflect.New(rv.Type().Elem()))
@@ -672,7 +679,8 @@ func (d *Decoder) setDeepValue(rv reflect.Value, query map[string][]string) erro
 			continue
 		}
 
-		if err := setValue(rv.Field(i), query[conf.name]); err != nil {
+		err := setValue(rv.Field(i), query[conf.name])
+		if err != nil {
 			return err
 		}
 	}
