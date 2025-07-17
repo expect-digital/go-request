@@ -28,23 +28,24 @@ Declare once and re-use in handlers.
 package main
 
 import (
-  "net/http"
+	"net/http"
 
-  "go.expect.digital/request"
+	"go.expect.digital/request"
 )
 
 func main() {
-  http.HandleFunc("/{id}", func (w http.ResponseWriter, r *http.Request) {
-    var req struct {
-      ID int `oas:"id,path"`
-    }
+	http.HandleFunc("/{id}", func (w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			ID int `oas:"id,path"`
+		}
 
-    if err := request.Decode(r, &req); err != nil {
-      return
-    }
-  })
+		err := request.Decode(r, &req)
+		if err != nil {
+			return
+		}
+	})
 
-  log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
 
@@ -71,7 +72,8 @@ func main() {
 			ID int `oas:"id,path"`
 		}
 
-		if err := decode(r, &req); err != nil {
+		err := decode(r, &req)
+		if  err != nil {
 			return
 		}
 	})
@@ -107,7 +109,8 @@ func main() {
 			ID int `oas:"id,path"`
 		}
 
-		if err := decode(r, &req); err != nil {
+		err := decode(r, &req)
+		if  err != nil {
 			return
 		}
 	})
@@ -147,7 +150,8 @@ func main() {
 			ID int `oas:"id,path"`
 		}
 
-		if err := decode(c.Request, &req); err != nil {
+		err := decode(c.Request, &req)
+		if err != nil {
 			return
 		}
 	})
