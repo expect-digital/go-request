@@ -28,24 +28,24 @@ Declare once and re-use in handlers.
 package main
 
 import (
-  "net/http"
+	"net/http"
 
-  "go.expect.digital/request"
+	"go.expect.digital/request"
 )
 
 func main() {
-  http.HandleFunc("/{id}", func (w http.ResponseWriter, r *http.Request) {
-    var req struct {
-      ID int `oas:"id,path"`
-    }
+	http.HandleFunc("/{id}", func (w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			ID int `oas:"id,path"`
+		}
 
 		err := request.Decode(r, &req)
-    if err != nil {
-      return
-    }
-  })
+		if err != nil {
+			return
+		}
+	})
 
-  log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
 
