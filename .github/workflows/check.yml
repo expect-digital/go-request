@@ -1,5 +1,7 @@
 on: [pull_request]
 name: Check
+permissions:
+  contents: read
 jobs:
   check:
     runs-on: ${{ matrix.os }}
