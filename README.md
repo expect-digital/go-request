@@ -1,4 +1,4 @@
-# request [![GoDoc](https://img.shields.io/badge/pkg.go.dev-doc-blue)](https://pkg.go.dev/go.expect.digital/request) ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/expect-digital/go-request/workflow.yml) ![GitHub](https://img.shields.io/github/license/expect-digital/go-request)
+# request [![GoDoc](https://img.shields.io/badge/pkg.go.dev-doc-blue)](https://pkg.go.dev/go.expect.digital/request) ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/expect-digital/go-request/check.yml) ![GitHub](https://img.shields.io/github/license/expect-digital/go-request)
 
 Package `request` simplifies decoding HTTP request data (like path parameters, query strings, and request bodies) into Go structs. It leverages struct tags based on the [OpenAPI 3.1](https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md) specification to reduce boilerplate code and make request handling cleaner and more declarative.
 
