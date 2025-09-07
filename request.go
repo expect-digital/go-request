@@ -171,7 +171,7 @@ func NewDecoder(opts ...Opt) Decoder {
 var defaultDecoder = NewDecoder()
 
 // Decode decodes an HTTP request into a Go struct according to OpenAPI 3 specification.
-func Decode(r *http.Request, i interface{}) error {
+func Decode(r *http.Request, i any) error {
 	return defaultDecoder.Decode(r, i)
 }
 
@@ -236,7 +236,7 @@ func Decode(r *http.Request, i interface{}) error {
 //	}
 //
 // [Query Serialization]: https://swagger.io/docs/specification/serialization/#query
-func (d Decoder) Decode(r *http.Request, i interface{}) error {
+func (d Decoder) Decode(r *http.Request, i any) error {
 	v := reflect.ValueOf(i)
 	if v.Kind() != reflect.Ptr {
 		return errors.New("call of Decode passes non-pointer as second argument")
@@ -478,7 +478,7 @@ func parseQueryValues(queryConf fieldQueryConf, query map[string][]string) ([]st
 	return strings.Split(last, delimiter), true
 }
 
-func decodeBody(r *http.Request, i interface{}, conf fieldConf) error {
+func decodeBody(r *http.Request, i any, conf fieldConf) error {
 	var format string
 
 	switch {

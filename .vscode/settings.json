@@ -1,6 +1,15 @@
 {
   "editor.formatOnSave": true,
+  "go.coverOnSave": true,
+  "go.formatTool": "gofumpt",
+  "go.lintOnSave": "workspace",
+  "go.lintTool": "golangci-lint-v2",
   "go.testOnSave": true,
-  "go.lintTool": "golangci-lint",
-  "go.coverOnSave": true
+  "go.diagnostic.vulncheck": "Imports",
+  "window.title": "go.expect.digital/request",
+  "gopls": {
+    "codelenses": {
+      "run_govulncheck": true,
+    },
+  },
 }
