@@ -610,7 +610,7 @@ func BenchmarkDecode(b *testing.B) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?value=one,two,three&deep[ok]=1", nil)
 
-	for range b.N {
+	for b.Loop() {
 		err = Decode(r, &req)
 	}
 
