@@ -17,6 +17,10 @@ While code generation from an API specification is often preferred, this package
 - **Framework Agnostic:** Works with the standard `net/http` library and can be easily integrated with popular frameworks like Chi, Gorilla Mux, and Gin.
 - **Customizable:** Allows overriding default behaviors for path parameter extraction and query parsing.
 
+## Requirements
+
+Golang 1.24+ is required.
+
 ## Installation
 
 ```sh
