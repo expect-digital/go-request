@@ -626,7 +626,7 @@ func FuzzDecode(f *testing.F) {
 	f.Add("", []byte(nil), "", "")
 
 	f.Fuzz(func(t *testing.T, query string, body []byte, path string, accept string) {
-		r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", bytes.NewReader(body))
 
 		// Safely set the query without parsing it as a full URL, avoiding NewRequest panics
 		r.URL = &url.URL{
@@ -640,17 +640,17 @@ func FuzzDecode(f *testing.F) {
 		var req struct {
 			PathValue string   `oas:"id,path"`
 			Value     string   `oas:"value,query"`
+			Ignore    string   `oas:"-"`
+			Slice     []string `oas:"slice,query"`
 			Other     int      `oas:"other,query"`
 			FloatVal  float64  `oas:"float,query"`
 			BoolVal   bool     `oas:"bool,query"`
-			Slice     []string `oas:"slice,query"`
 			Deep      struct {
 				Prop int `oas:"prop"`
 			} `oas:"deep,query,deepObject"`
 			BodyVal struct {
 				ID int `json:"id" xml:"id"`
 			} `oas:",body"`
-			Ignore string `oas:"-"`
 		}
 
 		// The fuzz test's goal is to find inputs that cause a panic.
