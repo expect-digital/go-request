@@ -23,7 +23,7 @@ func testQuery[T comparable](t *testing.T) {
 		queries := make(url.Values)
 		queries.Set("value", fmt.Sprint(v))
 
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 		err := Decode(r, &req)
 		if err != nil {
@@ -41,7 +41,7 @@ func testQuery[T comparable](t *testing.T) {
 func TestDecodePointerToStruct(t *testing.T) {
 	t.Parallel()
 
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 
 	want := "call of Decode passes non-pointer as second argument"
 
@@ -92,7 +92,7 @@ func TestDecodeQuerySlice(t *testing.T) {
 			queries.Add("value", v[i])
 		}
 
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 		err := Decode(r, &req)
 		if err != nil {
@@ -118,7 +118,7 @@ func TestDecodeQueryByteSlice(t *testing.T) {
 		queries := make(url.Values)
 		queries.Set("value", v)
 
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 		err := Decode(r, &req)
 		if err != nil {
@@ -151,7 +151,7 @@ func TestDecodeQueryImploded(t *testing.T) {
 			queries.Set("value", strings.Join(v, ","))
 		}
 
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 		err := Decode(r, &req)
 		if err != nil {
@@ -180,7 +180,7 @@ func TestDecodeQueryExploded(t *testing.T) {
 			queries.Add("value", v[i])
 		}
 
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 		err := Decode(r, &req)
 		if err != nil {
@@ -202,7 +202,7 @@ func TestDecodeInvalidTag(t *testing.T) {
 		Value []string `oas:"value,query,expanded"`
 	}
 
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 
 	err := Decode(r, &req)
 	if err == nil {
@@ -228,7 +228,7 @@ func TestDecodeQuerySliceSpace(t *testing.T) {
 			queries.Set("value", strings.Join(v, " "))
 		}
 
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 		err := Decode(r, &req)
 		if err != nil {
@@ -260,7 +260,7 @@ func TestDecodeQuerySlicePipe(t *testing.T) {
 			queries.Set("value", strings.Join(v, "|"))
 		}
 
-		r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 		err := Decode(r, &req)
 		if err != nil {
@@ -282,7 +282,7 @@ func TestDecodeQuerySliceEmpty(t *testing.T) {
 		Fields []string
 	}
 
-	r := httptest.NewRequest(http.MethodGet, "/?fields=", nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?fields=", nil)
 
 	err := Decode(r, &req)
 	if err != nil {
@@ -302,7 +302,7 @@ func TestDecodeQueryOptional(t *testing.T) {
 		Field bool `oas:"field,query"`
 	}
 
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 
 	err := Decode(r, &req)
 	if err != nil {
@@ -323,7 +323,7 @@ func TestDecodeQueryRequired(t *testing.T) {
 
 	queries := make(url.Values)
 
-	r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 	want := "query param 'field' is required"
 
@@ -354,7 +354,7 @@ func TestDecodeQueryFieldName(t *testing.T) {
 	queries.Add("fieldthree", "fuzz")
 	queries.Add("FIELDTHREE", "bazz")
 
-	r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 	var got req
 
@@ -388,7 +388,7 @@ func TestDecodeQueryIgnore(t *testing.T) {
 	queries := make(url.Values)
 	queries.Set("field", "foobar")
 
-	r := httptest.NewRequest(http.MethodGet, "/?"+queries.Encode(), nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+queries.Encode(), nil)
 
 	err := Decode(r, &req)
 	if err != nil {
@@ -413,7 +413,7 @@ func TestDecodeQueryDeep(t *testing.T) {
 		query.Set("filter[search]", v.Search)
 		query.Set("filter[gt]", strconv.Itoa(int(v.Gt)))
 
-		r := httptest.NewRequest(http.MethodGet, "/?"+query.Encode(), nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+query.Encode(), nil)
 
 		var req struct {
 			Filter `oas:"filter,query,deepObject"`
@@ -455,7 +455,7 @@ func TestDecodeUnmarshalText(t *testing.T) {
 		Sort
 	}
 
-	r := httptest.NewRequest(http.MethodGet, "/?sort=name", nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?sort=name", nil)
 
 	err := Decode(r, &req)
 	if err != nil {
@@ -480,7 +480,7 @@ func TestDecodeJSONBody(t *testing.T) {
 		} `oas:",body,json"`
 	}
 
-	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"id":9}`))
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`{"id":9}`))
 
 	err := Decode(r, &req)
 	if err != nil {
@@ -501,7 +501,7 @@ func TestDecodeXMLBody(t *testing.T) {
 		} `oas:",body,xml"`
 	}
 
-	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`<Body><Id>1</Id></Body>`))
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`<Body><Id>1</Id></Body>`))
 
 	err := Decode(r, &req)
 	if err != nil {
@@ -524,7 +524,7 @@ func TestDecoder_DecodePath(t *testing.T) {
 		}
 
 		// Path has no impact on the test. Set path value manually.
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 		r.SetPathValue("id", strconv.Itoa(id))
 
 		err := dec.Decode(r, &req)
@@ -554,7 +554,7 @@ func TestDecodeEmbeddedStructs(t *testing.T) {
 		query.Set("rangeEnd", strconv.Itoa(rangeEnd))
 		query.Set("sort", "name")
 
-		r := httptest.NewRequest(http.MethodGet, "/?"+query.Encode(), nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+query.Encode(), nil)
 
 		var req struct {
 			Sort
@@ -586,7 +586,7 @@ func TestDecodeImplodeLastValue(t *testing.T) {
 		Value string `oas:"value,query,implode"`
 	}
 
-	r := httptest.NewRequest(http.MethodGet, "/?value=first&value=last", nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?value=first&value=last", nil)
 
 	err := Decode(r, &req)
 	if err != nil {
@@ -608,7 +608,7 @@ func BenchmarkDecode(b *testing.B) {
 		} `oas:"deep,deepObject"`
 	}
 
-	r := httptest.NewRequest(http.MethodGet, "/?value=one,two,three&deep[ok]=1", nil)
+	r := httptest.NewRequestWithContext(b.Context(), http.MethodGet, "/?value=one,two,three&deep[ok]=1", nil)
 
 	for b.Loop() {
 		err = Decode(r, &req)
