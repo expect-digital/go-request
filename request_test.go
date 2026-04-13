@@ -1,6 +1,7 @@
 package request
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -615,4 +616,45 @@ func BenchmarkDecode(b *testing.B) {
 	}
 
 	_ = err
+}
+
+func FuzzDecode(f *testing.F) {
+	f.Add("value=test&other=123", []byte(`{"id": 1}`), "path_val", "application/json")
+	f.Add("value=test&value=another", []byte(`<xml></xml>`), "", "application/xml")
+	f.Add("slice=a,b,c", []byte(`garbage`), "123", "*/*")
+	f.Add("deep[prop]=1", []byte(nil), "0", "")
+	f.Add("", []byte(nil), "", "")
+
+	f.Fuzz(func(t *testing.T, query string, body []byte, path string, accept string) {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", bytes.NewReader(body))
+
+		// Safely set the query without parsing it as a full URL, avoiding NewRequest panics
+		r.URL = &url.URL{
+			Path:     "/",
+			RawQuery: query,
+		}
+
+		r.Header.Set("Accept", accept)
+		r.SetPathValue("id", path)
+
+		var req struct {
+			PathValue string   `oas:"id,path"`
+			Value     string   `oas:"value,query"`
+			Ignore    string   `oas:"-"`
+			Slice     []string `oas:"slice,query"`
+			Other     int      `oas:"other,query"`
+			FloatVal  float64  `oas:"float,query"`
+			BoolVal   bool     `oas:"bool,query"`
+			Deep      struct {
+				Prop int `oas:"prop"`
+			} `oas:"deep,query,deepObject"`
+			BodyVal struct {
+				ID int `json:"id" xml:"id"`
+			} `oas:",body"`
+		}
+
+		// The fuzz test's goal is to find inputs that cause a panic.
+		// We don't need to check the returned error.
+		_ = Decode(r, &req)
+	})
 }
