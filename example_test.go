@@ -1,6 +1,7 @@
 package request_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +11,8 @@ import (
 )
 
 func ExampleDecode() {
-	r := httptest.NewRequest(
+	r := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodPost,
 		"/?filterType=pending,approved&clientId=4&filterClientIds=1|2|3",
 		strings.NewReader(`{"id":1}`),
@@ -36,7 +38,7 @@ func ExampleDecode() {
 }
 
 func ExampleDecoder_Decode() {
-	r := httptest.NewRequest(http.MethodPost, "/?ids=1,2,3", nil)
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/?ids=1,2,3", nil)
 
 	var req struct {
 		IDs []int

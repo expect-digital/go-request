@@ -576,6 +576,7 @@ func setValue(rv reflect.Value, values []string) error {
 
 	const bitsPerByte = 8
 
+	//nolint:gosec // A Go type size will never realistically overflow number types.
 	bitSize := func() int { return int(rv.Type().Size()) * bitsPerByte }
 
 	value := values[0]
