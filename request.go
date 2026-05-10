@@ -238,7 +238,7 @@ func Decode(r *http.Request, i any) error {
 // [Query Serialization]: https://swagger.io/docs/specification/serialization/#query
 func (d Decoder) Decode(r *http.Request, i any) error {
 	v := reflect.ValueOf(i)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return errors.New("call of Decode passes non-pointer as second argument")
 	}
 
@@ -566,7 +566,7 @@ func setValue(rv reflect.Value, values []string) error {
 		return nil
 	}
 
-	for rv.Kind() == reflect.Ptr {
+	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			rv.Set(reflect.New(rv.Type().Elem()))
 		}
@@ -576,7 +576,6 @@ func setValue(rv reflect.Value, values []string) error {
 
 	const bitsPerByte = 8
 
-	//nolint:gosec // A Go type size will never realistically overflow number types.
 	bitSize := func() int { return int(rv.Type().Size()) * bitsPerByte }
 
 	value := values[0]
@@ -660,7 +659,7 @@ func setValue(rv reflect.Value, values []string) error {
 }
 
 func (d Decoder) setDeepValue(rv reflect.Value, query map[string][]string) error {
-	for rv.Kind() == reflect.Ptr {
+	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			rv.Set(reflect.New(rv.Type().Elem()))
 		}
