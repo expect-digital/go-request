@@ -289,10 +289,7 @@ func (d Decoder) Decode(r *http.Request, i any) error {
 				return fmt.Errorf("path '%s': %w", conf, err)
 			}
 		case originHeader:
-			err := decodeHeaders()
-			if err != nil {
-				return err
-			}
+			return errors.New("unmarshaling header is not implemented")
 		}
 	}
 
@@ -514,10 +511,6 @@ func decodeBody(r *http.Request, i any, conf fieldConf) error {
 
 		return nil
 	}
-}
-
-func decodeHeaders() error {
-	return errors.New("unmarshaling header is not implemented")
 }
 
 func (d Decoder) decodeQuery(fv reflect.Value, conf fieldConf, query map[string][]string) error {
